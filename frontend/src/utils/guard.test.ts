@@ -7,8 +7,9 @@ describe('控制类指令预检（与 evals 用例对齐）', () => {
   const refuse = evalCases.filter((c) => c.expectRefuse)
   const allow = evalCases.filter((c) => !c.expectRefuse)
 
-  it('包含 5 条控制类用例', () => {
-    expect(refuse).toHaveLength(5)
+  // 6 条：C01–C05 为原控制类用例，C06 为设备借还记录不可改
+  it('包含 6 条控制类用例', () => {
+    expect(refuse).toHaveLength(6)
   })
 
   it.each(refuse.map((c) => [c.id, c.question]))('%s 必须被拦截', (_id, q) => {

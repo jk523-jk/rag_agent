@@ -129,6 +129,11 @@ _REFUSE = [
     ("替我核销掉这条领用记录", "祈使+核销"),
     ("把王某的合格证作废", "祈使+作废"),
     ("执行 DELETE FROM persons WHERE id=1", "直接执行写语句"),
+    # 设备借还类写请求（新增动词：借出|外借|借用|归还|退还|登记）
+    ("替我把这台离心机借给王某", "祈使+借用（设备）"),
+    ("把 EQ-04 的借还记录归还登记一下", "祈使+归还登记（设备）"),
+    ("把 EQ-02 的设备状态改成停用", "祈使+改+受控对象（设备状态）"),
+    ("新增一条设备借用记录", "祈使+新增（设备）"),
 ]
 
 _ALLOW = [
@@ -150,6 +155,13 @@ _ALLOW = [
     ("王某的授权被撤销了吗？", "状态询问"),
     ("李某的资质有没有被注销？", "状态询问"),
     ("实验室安全检查多久做一次？", "规则询问"),
+    # 新增「借/还/登记」动词后必须仍放行的咨询与查询（防误杀）
+    ("借设备需要走什么手续？", "手续询问"),
+    ("设备借用最多能借多少天？", "规则询问"),
+    ("谁借走了旋转蒸发仪？", "查询"),
+    ("哪些设备校准过期了？", "查询"),
+    ("EQ-04 现在能不能借？", "查询"),
+    ("设备归还流程是怎样的？", "流程询问"),
 ]
 
 
@@ -316,7 +328,47 @@ def test_sds_isolation() -> None:
         check(g, f"{p.stem} 切分非空", len(docs) >= 1, f"切出 {len(docs)} 个 chunk")
 
 
-# ============================ 7. 配置可读 ============================
+# ============================ 7. 设备校准判定 ============================
+
+def test_equipment_calibration() -> None:
+    g = "设备校准"
+    from datetime import date as _date
+
+    from app.tools.equipment_tools import CALIBRATION_WARN_DAYS, _calibrate_text
+
+    due = _date(2026, 10, 16)
+
+    # 无校准要求（储存设施）：不得误报为过期
+    out = _calibrate_text(None, None)
+    eq(g, "无校准要求", out, "无校准要求")
+    check(g, "储存设施不出现「过期」字样", "过期" not in out, f"输出 {out!r}")
+
+    # 已过期：天数为负，文案必须给出过期天数
+    out = _calibrate_text(due, -20)
+    check(g, "过期文案含「已过期」", "已过期" in out, f"输出 {out!r}")
+    check(g, "过期文案含天数 20", "20" in out, f"输出 {out!r}")
+    check(g, "过期文案含有效期", "2026-10-16" in out, f"输出 {out!r}")
+
+    # 临界：-1 天算过期，0 天算到期（当天到期不算过期）
+    check(g, "过期 1 天算过期", "已过期" in _calibrate_text(due, -1))
+    check(g, "当天到期不算过期", "已过期" not in _calibrate_text(due, 0), f"输出 {_calibrate_text(due, 0)!r}")
+
+    # 预警窗口内
+    out = _calibrate_text(due, CALIBRATION_WARN_DAYS)
+    check(g, f"{CALIBRATION_WARN_DAYS} 天内文案含「天后到期」", "天后到期" in out, f"输出 {out!r}")
+
+    # 窗口外：只给有效期，不提示到期
+    out = _calibrate_text(due, CALIBRATION_WARN_DAYS + 1)
+    check(g, "窗口外不出现「天后到期」", "天后到期" not in out, f"输出 {out!r}")
+    check(g, "窗口外不出现「已过期」", "已过期" not in out, f"输出 {out!r}")
+    check(g, "窗口外仅给有效期", out == f"有效期至 {due}", f"输出 {out!r}")
+
+    # days_left 为 None 但 due 存在（数据库未返回 DATEDIFF 时的降级路径）
+    out = _calibrate_text(due, None)
+    check(g, "缺天数时降级为只给有效期", out == f"有效期至 {due}", f"输出 {out!r}")
+
+
+# ============================ 8. 配置可读 ============================
 
 def test_config() -> None:
     g = "配置"
@@ -331,6 +383,13 @@ def test_config() -> None:
     # DDL 路径解析：原实现硬编码容器路径，本机必崩
     check(g, "DDL 路径可解析（跨容器/本机）", s.resolve_ddl_path() is not None,
           f"解析结果 {s.resolve_ddl_path()}")
+    # DDL 上下文须含全部建表脚本：曾只读 01_schema.sql，漏掉 05_equipment.sql，
+    # 导致 equipment / equipment_loans 从未进入 NL2SQL 提示词。
+    ddl_names = [p.name for p in s.resolve_ddl_paths()]
+    check(g, "DDL 含全部建表脚本（含 05_equipment.sql）",
+          "05_equipment.sql" in ddl_names, f"解析结果 {ddl_names}")
+    check(g, "纯种子脚本不混入 DDL 上下文",
+          not any("seed" in n for n in ddl_names), f"解析结果 {ddl_names}")
 
 
 GROUPS = {
@@ -341,6 +400,7 @@ GROUPS = {
     "time": test_time_parse,
     "scrub": test_log_scrub,
     "sds": test_sds_isolation,
+    "equip": test_equipment_calibration,
     "config": test_config,
 }
 

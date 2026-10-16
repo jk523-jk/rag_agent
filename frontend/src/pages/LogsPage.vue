@@ -28,7 +28,7 @@ const pageSize = 10
 const detail = ref<LogEntry | null>(null)
 
 const TYPE_LABEL: Record<LogEntry['taskType'], string> = {
-  chat: '对话', retrieval: '检索', workflow: '工作流', evaluation: '评估',
+  chat: '对话', access: '出入核查', equipment: '设备', workflow: '工作流', evaluation: '评估',
 }
 
 const filtered = computed(() => {
@@ -207,13 +207,6 @@ watch(() => route.query.id, (id) => {
         <h3 class="label">错误信息</h3>
         <p class="rounded-[var(--radius-control)] border border-err/30 bg-err-soft px-3 py-2 text-[12px] text-err">{{ detail.error }}</p>
         <button type="button" class="btn-default mt-2 h-7 px-2 text-[12px]" @click="copyError"><Copy class="size-3.5" aria-hidden="true" />复制错误信息</button>
-      </section>
-
-      <section v-if="detail.linkedChunks.length">
-        <h3 class="label">关联的检索结果</h3>
-        <ul class="flex flex-wrap gap-1.5">
-          <li v-for="c in detail.linkedChunks" :key="c" class="rounded border border-line bg-page px-2 py-0.5 font-mono text-[12px] text-ink-2">{{ c }}</li>
-        </ul>
       </section>
 
       <p class="rounded-[var(--radius-control)] bg-warn-soft px-3 py-2 text-[12px] text-warn">

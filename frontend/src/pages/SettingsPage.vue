@@ -16,14 +16,12 @@ const workspace = useWorkspaceStore()
 const chat = useChatStore()
 const ui = useUiStore()
 
-type Section = 'general' | 'model' | 'embedding' | 'retrieval' | 'appearance' | 'data'
+type Section = 'general' | 'model' | 'appearance' | 'data'
 const section = ref<Section>('general')
 
 const NAV: { key: Section; label: string }[] = [
   { key: 'general', label: '通用设置' },
   { key: 'model', label: '模型配置' },
-  { key: 'embedding', label: 'Embedding 配置' },
-  { key: 'retrieval', label: '检索默认配置' },
   { key: 'appearance', label: '外观设置' },
   { key: 'data', label: '数据管理' },
 ]
@@ -51,10 +49,6 @@ function validate(): boolean {
   if (!Number.isInteger(draft.model.timeoutSec) || draft.model.timeoutSec < 5 || draft.model.timeoutSec > 300) {
     e.timeoutSec = '超时需为 5–300 秒'
   }
-  if (!Number.isInteger(draft.retrieval.topK) || draft.retrieval.topK < 1 || draft.retrieval.topK > 20) {
-    e.topK = 'Top-K 需为 1–20 的整数'
-  }
-  if (draft.retrieval.scoreThreshold < 0 || draft.retrieval.scoreThreshold > 1) e.threshold = '相似度阈值需在 0–1 之间'
 
   errors.value = e
   return Object.keys(e).length === 0
@@ -108,14 +102,14 @@ interface StorageRow {
 }
 
 const storageRows = computed<StorageRow[]>(() => [
-  { id: 'k1', name: 'nexus-workspace', content: 'Agent / 知识库 / 工作流 / 评估 / 日志 / 配置', size: `${(JSON.stringify(workspace.state).length / 1024).toFixed(1)} KB` },
+  { id: 'k1', name: 'nexus-workspace', content: 'Agent / 工作流 / 评估 / 日志 / 实验室领域数据（人员·资质·授权·门禁·台账·设备） / 配置', size: `${(JSON.stringify(workspace.state).length / 1024).toFixed(1)} KB` },
   { id: 'k2', name: 'nexus-chat', content: `会话 ${chat.state.sessions.length} 个`, size: `${(JSON.stringify(chat.state).length / 1024).toFixed(1)} KB` },
   { id: 'k3', name: 'nexus-ui', content: '界面偏好（导航折叠状态）', size: '< 1 KB' },
 ])
 </script>
 
 <template>
-  <PageHeader title="系统设置" description="配置模型、向量化、检索默认值与演示数据。">
+  <PageHeader title="系统设置" description="配置模型、外观与演示数据。">
     <template #actions>
       <button type="button" class="btn-default" @click="resetDraft"><RotateCcw class="size-4" aria-hidden="true" />恢复默认值</button>
       <button type="button" class="btn-primary" @click="save"><Save class="size-4" aria-hidden="true" />保存配置</button>
@@ -189,47 +183,6 @@ const storageRows = computed<StorageRow[]>(() => [
         </div>
       </section>
 
-      <!-- Embedding -->
-      <section v-else-if="section === 'embedding'" class="panel p-4" aria-labelledby="s-embed">
-        <h2 id="s-embed" class="mb-3 text-[15px] font-semibold text-ink">Embedding 配置</h2>
-        <div class="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label class="label" for="set-embed">Embedding 模型</label>
-            <select id="set-embed" v-model="draft.embedding.model" class="input">
-              <option value="text-embedding-v3">text-embedding-v3</option>
-              <option value="bge-m3">bge-m3</option>
-            </select>
-          </div>
-          <div>
-            <label class="label" for="set-dim">向量维度</label>
-            <input id="set-dim" v-model.number="draft.embedding.dimension" type="number" class="input tabular-nums" disabled />
-            <p class="mt-1 text-[12px] text-ink-3">维度由所选模型决定，需与已有索引一致，否则需要重建索引。</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- 检索 -->
-      <section v-else-if="section === 'retrieval'" class="panel p-4" aria-labelledby="s-retrieval">
-        <h2 id="s-retrieval" class="mb-3 text-[15px] font-semibold text-ink">检索默认配置</h2>
-        <div class="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label class="label" for="set-topk">默认 Top-K</label>
-            <input id="set-topk" v-model.number="draft.retrieval.topK" type="number" min="1" max="20" class="input tabular-nums" :aria-invalid="!!errors.topK" />
-            <p v-if="errors.topK" class="mt-1 text-[12px] text-err">{{ errors.topK }}</p>
-          </div>
-          <div>
-            <label class="label" for="set-threshold">相似度阈值（0–1）</label>
-            <input id="set-threshold" v-model.number="draft.retrieval.scoreThreshold" type="number" min="0" max="1" step="0.05" class="input tabular-nums" :aria-invalid="!!errors.threshold" />
-            <p v-if="errors.threshold" class="mt-1 text-[12px] text-err">{{ errors.threshold }}</p>
-            <p class="mt-1 text-[12px] text-ink-3">低于阈值一律返回空，禁止编造条款。</p>
-          </div>
-        </div>
-        <div class="mt-3 space-y-2">
-          <label class="flex items-center gap-2 text-[13px] text-ink"><input v-model="draft.retrieval.hybrid" type="checkbox" class="accent-[#4F46E5]" />默认启用混合检索</label>
-          <label class="flex items-center gap-2 text-[13px] text-ink"><input v-model="draft.retrieval.rerank" type="checkbox" class="accent-[#4F46E5]" />默认启用重排序</label>
-        </div>
-      </section>
-
       <!-- 外观 -->
       <section v-else-if="section === 'appearance'" class="panel p-4" aria-labelledby="s-look">
         <h2 id="s-look" class="mb-3 text-[15px] font-semibold text-ink">外观设置</h2>
@@ -272,7 +225,7 @@ const storageRows = computed<StorageRow[]>(() => [
             <button type="button" class="btn-danger" @click="confirmReset = true"><RotateCcw class="size-4" aria-hidden="true" />重置演示数据</button>
           </div>
           <p class="mt-3 text-[12px] text-ink-3">
-            重置会清空本地修改（Agent、知识库、工作流、会话与配置）并恢复初始演示数据，此操作不可撤销。
+            重置会清空本地修改（Agent、工作流、实验室领域数据、会话与配置）并恢复初始演示数据，此操作不可撤销。
           </p>
         </section>
 

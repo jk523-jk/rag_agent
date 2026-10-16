@@ -20,12 +20,50 @@ const hasData = computed(() => trend.value.some((p) => p.value > 0))
 
 const recentTasks = computed(() => workspace.state.logs.slice(0, 5))
 
+// ---------------- 实验室指标（对齐后端判定口径）----------------
+
+const DEMO_TODAY = '2026-10-15'
+/** 资质闸唯一认可的证书类型 */
+const CERT_GATE_TYPE = '安全考试合格证'
+
+const equipmentCount = computed(() => workspace.state.equipment.length)
+const inUseCount = computed(() => workspace.state.equipment.filter((e) => e.status === '在用').length)
+
+/** 校准是否过期：以有效期为准，不看状态字段 */
+const calibExpiredCount = computed(
+  () => workspace.state.equipment.filter((e) => !!e.calibrateDue && e.calibrateDue < DEMO_TODAY).length,
+)
+
+/** 资质异常人数：安全考试合格证已过期或未登记 */
+const certExpiredCount = computed(
+  () =>
+    workspace.state.persons.filter((p) => {
+      const matched = workspace
+        .qualificationsOf(p.id)
+        .filter((q) => q.certType === CERT_GATE_TYPE)
+      if (!matched.length) return true
+      const latest = matched.reduce((a, b) => (b.expireDate > a.expireDate ? b : a))
+      return latest.expireDate < DEMO_TODAY
+    }).length,
+)
+
+const openLoanCount = computed(
+  () => workspace.state.equipment.filter((e) => workspace.currentLoan(e.equipId)).length,
+)
+
+const overdueCount = computed(
+  () =>
+    workspace.state.equipmentLoans.filter(
+      (l) => l.returnTime === null && l.dueTime < `${DEMO_TODAY} 23:59`,
+    ).length,
+)
+
 // 最近活动：演示用固定条目，点击进入对应页面
 const activities = [
-  { text: '知识库「重点试剂 SDS 摘要」新增文档 过氧化氢_SDS.md', at: '2026-10-14 16:50', to: '/knowledge/kb-sds' },
+  { text: '设备 EQ-0002 气相色谱质谱联用仪校准已过期 20 天', at: '2026-10-15 08:50', to: '/equipment' },
   { text: 'Agent「准入判定助手」完成一次三闸判定', at: '2026-10-15 09:42', to: '/logs' },
+  { text: '赵某借用便携式气体检测仪逾期未还（应还 10-12）', at: '2026-10-15 08:00', to: '/access' },
   { text: '工作流「准入复核流程」运行失败（模拟超时）', at: '2026-10-14 16:58', to: '/workflows/wf-access' },
-  { text: '检索实验室执行混合检索（模拟）', at: '2026-10-14 17:30', to: '/retrieval' },
 ]
 
 function taskTarget(log: LogEntry) {
@@ -39,10 +77,10 @@ function openLog(log: LogEntry) {
 </script>
 
 <template>
-  <PageHeader title="工作台" description="查看 AI 应用、知识库和任务运行的整体状态。">
+  <PageHeader title="工作台" description="查看 AI 应用、实验室设备与人员的整体状态。">
     <template #actions>
-      <RouterLink to="/agents?create=1" class="btn-default">新建 Agent</RouterLink>
-      <RouterLink to="/knowledge?create=1" class="btn-primary">新建知识库</RouterLink>
+      <RouterLink to="/chat" class="btn-default">去 AI 对话</RouterLink>
+      <RouterLink to="/equipment?create=1" class="btn-primary">新增设备</RouterLink>
     </template>
   </PageHeader>
 
@@ -52,10 +90,25 @@ function openLog(log: LogEntry) {
 
   <!-- 核心指标 -->
   <section aria-label="核心指标" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    <StatCard label="Agent 总数" :value="String(workspace.state.agents.length)" delta="较上周 +1" deltaTone="up" />
-    <StatCard label="知识库总数" :value="String(workspace.state.knowledgeBases.length)" delta="较上周 +0" deltaTone="flat" />
-    <StatCard label="今日对话数" value="1,284" delta="较昨日 +6.2%" deltaTone="up" />
-    <StatCard label="任务成功率" value="98.6%" delta="较上周 −0.4%" deltaTone="down" />
+    <StatCard label="设备总数" :value="String(equipmentCount)" :delta="`在用 ${inUseCount}`" deltaTone="flat" />
+    <StatCard
+      label="校准过期"
+      :value="String(calibExpiredCount)"
+      :delta="calibExpiredCount ? '不得用于出具数据' : '无'"
+      :deltaTone="calibExpiredCount ? 'down' : 'flat'"
+    />
+    <StatCard
+      label="人员资质异常"
+      :value="String(certExpiredCount)"
+      :delta="certExpiredCount ? '资质闸将拦截' : '全部有效'"
+      :deltaTone="certExpiredCount ? 'down' : 'flat'"
+    />
+    <StatCard
+      label="借出未还"
+      :value="String(openLoanCount)"
+      :delta="overdueCount ? `其中 ${overdueCount} 台逾期` : '无逾期'"
+      :deltaTone="overdueCount ? 'down' : 'flat'"
+    />
   </section>
 
   <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">

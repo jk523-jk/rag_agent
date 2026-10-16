@@ -159,7 +159,7 @@ async function run() {
       id: res.logId, taskType: 'workflow', target: wf.value.name, startedAt: '2026-10-15 10:00',
       durationMs: res.steps.reduce((s, x) => s + x.durationMs, 0),
       status: res.steps.some((s) => s.status === 'failed') ? 'failed' : 'success',
-      tokens: 1180, steps: res.steps, linkedChunks: [], isMock: true,
+      tokens: 1180, steps: res.steps, isMock: true,
       error: res.steps.find((s) => s.error)?.error,
     })
     ui.toast(res.steps.some((s) => s.status === 'failed') ? '模拟运行结束：存在失败节点' : '模拟运行完成', res.steps.some((s) => s.status === 'failed') ? 'error' : 'success')

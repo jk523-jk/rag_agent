@@ -20,7 +20,8 @@ const VERBS =
   '导出|下载|拷出|' +
   '开门|开闸|放行|解锁|' +
   '新增|添加|录入|写入|导入|补录|' +
-  '授予|设定|设置|重置|启用|禁用|开通|关闭'
+  '授予|设定|设置|重置|启用|禁用|开通|关闭|' +
+  '借给|借出|外借|借用|归还|退还|登记'
 
 // 受控对象：出现这些词说明动的是一条真实记录，而不是在问流程
 const OBJECTS =
@@ -81,10 +82,20 @@ export function detectControlIntent(question: string): string | null {
 }
 
 // 剧毒品 / 易制爆精确库存只允许区间化输出（红线 4）
+// 与后端 inventory_tools.to_interval 口径一致：q<5 少量；[5,50) 步长5；[50,500) 步长50；≥500 步长500。
+// 下界取 max(lo, step) 保证不为 0——否则 q=6 会输出「约 0–5」，反而把精确值暴露在区间边界上。
 export function toInterval(qty: number, unit: string): string {
   if (qty <= 0) return `无库存（0 ${unit}）`
   if (qty < 5) return `少量（不足 5 ${unit}）`
   const step = qty < 50 ? 5 : qty < 500 ? 50 : 500
-  const lo = Math.floor(qty / step) * step
+  const lo = Math.max(Math.floor(qty / step) * step, step)
   return `约 ${lo}–${lo + step} ${unit}`
 }
+
+/** 需区间化处理的危险类别，与后端 SENSITIVE_CLASSES 一致 */
+export const SENSITIVE_CLASSES = ['剧毒品', '易制爆']
+
+export function isSensitive(hazardClass: string | null | undefined): boolean {
+  return SENSITIVE_CLASSES.includes(hazardClass ?? '')
+}
+

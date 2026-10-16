@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import {
-  LayoutDashboard, MessagesSquare, Bot, Workflow, Library, FlaskConical,
-  ScrollText, ClipboardCheck, Settings,
+  LayoutDashboard, MessagesSquare, Bot, Workflow, FlaskConical, Microscope,
+  Users, ShieldCheck, DoorOpen, ScrollText, ClipboardCheck, Settings,
 } from 'lucide-vue-next'
 
 export interface NavItem {
@@ -15,7 +15,9 @@ export interface NavGroup {
   items: NavItem[]
 }
 
-// 导航顺序与设计规范 §3.1 一致，路径必须与 router 中的定义对应
+// 导航顺序与设计规范 §3.1 一致，路径必须与 router 中的定义对应。
+// 「实验室管理」为本项目重构后的分组：原有「知识与检索」（知识库 / 检索实验室）
+// 已被药剂、设备、人员、许可、出入五个管理页面取代。
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: '工作空间',
@@ -32,10 +34,13 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: '知识与检索',
+    title: '实验室管理',
     items: [
-      { path: '/knowledge', label: '知识库', icon: Library },
-      { path: '/retrieval', label: '检索实验室', icon: FlaskConical },
+      { path: '/reagents', label: '药剂管理', icon: FlaskConical },
+      { path: '/equipment', label: '设备管理', icon: Microscope },
+      { path: '/persons', label: '人员管理', icon: Users },
+      { path: '/permits', label: '许可管理', icon: ShieldCheck },
+      { path: '/access', label: '出入管理', icon: DoorOpen },
     ],
   },
   {

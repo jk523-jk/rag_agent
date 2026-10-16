@@ -11,6 +11,11 @@ from app.tools.access_tools import (
     get_person_qualification,
     query_records,
 )
+from app.tools.equipment_tools import (
+    check_equipment_loan,
+    list_calibration_due,
+    query_equipment,
+)
 from app.tools.inventory_tools import query_inventory, reconcile_inventory
 from app.tools.policy_tools import search_policy
 
@@ -21,6 +26,9 @@ TOOLS = [
     get_person_qualification,
     query_inventory,
     reconcile_inventory,
+    query_equipment,
+    check_equipment_loan,
+    list_calibration_due,
 ]
 
 # 明确禁止出现的工具名（写入 / 导出 / 控制类）

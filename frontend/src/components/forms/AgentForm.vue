@@ -15,7 +15,7 @@ const ui = useUiStore()
 
 const form = reactive<AgentDraft>({
   name: '', description: '', systemPrompt: '', model: 'qwen-plus',
-  temperature: 0, maxTokens: 2048, knowledgeIds: [], tools: [], status: 'enabled',
+  temperature: 0, maxTokens: 2048, tools: [], status: 'enabled',
 })
 const errors = ref<Partial<Record<keyof AgentDraft, string>>>({})
 const submitting = ref(false)
@@ -26,15 +26,15 @@ watch(() => props.open, (v) => {
   const a = props.agent
   Object.assign(form, a
     ? { name: a.name, description: a.description, systemPrompt: a.systemPrompt, model: a.model,
-        temperature: a.temperature, maxTokens: a.maxTokens, knowledgeIds: [...a.knowledgeIds],
+        temperature: a.temperature, maxTokens: a.maxTokens,
         tools: [...a.tools], status: a.status }
     : { name: '', description: '', systemPrompt: '', model: 'qwen-plus', temperature: 0,
-        maxTokens: 2048, knowledgeIds: [], tools: [], status: 'enabled' })
+        maxTokens: 2048, tools: [], status: 'enabled' })
 })
 
 const title = computed(() => (props.agent ? '编辑 Agent' : '新建 Agent'))
 
-function toggle<K extends 'tools' | 'knowledgeIds'>(key: K, value: string) {
+function toggle(key: 'tools', value: string) {
   const list = form[key]
   const i = list.indexOf(value)
   if (i >= 0) list.splice(i, 1)
@@ -57,7 +57,6 @@ function submit() {
     model: form.model,
     temperature: Number(form.temperature),
     maxTokens: Number(form.maxTokens),
-    knowledgeIds: [...form.knowledgeIds],
     tools: [...form.tools],
     status: form.status,
     lastRunAt: props.agent?.lastRunAt ?? '—',
@@ -121,16 +120,6 @@ function submit() {
           </label>
         </div>
         <p v-if="errors.tools" class="mt-1 text-[12px] text-err">{{ errors.tools }}</p>
-      </fieldset>
-
-      <fieldset>
-        <legend class="label">关联知识库</legend>
-        <div class="flex flex-wrap gap-2">
-          <label v-for="k in workspace.state.knowledgeBases" :key="k.id" class="inline-flex items-center gap-2 rounded-[var(--radius-control)] border border-line px-2.5 py-1.5 text-[13px] has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
-            <input type="checkbox" class="accent-[#4F46E5]" :checked="form.knowledgeIds.includes(k.id)" @change="toggle('knowledgeIds', k.id)" />
-            {{ k.name }}
-          </label>
-        </div>
       </fieldset>
 
       <div>

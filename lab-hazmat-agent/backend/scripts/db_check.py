@@ -68,7 +68,9 @@ async def main() -> int:
     print(f"{INFO} SSL       : {'启用' if s.mysql_ssl_args else '未启用'}"
           + (f"  CA={s.mysql_ssl_ca}" if s.mysql_ssl_ca else ""))
     print(f"{INFO} 连接超时  : {s.mysql_connect_timeout}s   连接池: {s.mysql_pool_min}-{s.mysql_pool_max}")
-    print(f"{INFO} DDL 脚本  : {s.resolve_ddl_path() or '未找到（NL2SQL 将缺表结构）'}")
+    ddl_paths = s.resolve_ddl_paths()
+    ddl_desc = ", ".join(p.name for p in ddl_paths) if ddl_paths else "未找到（NL2SQL 将缺表结构）"
+    print(f"{INFO} DDL 脚本  : {ddl_desc}")
 
     print("\n[1] TCP 连通性")
     ok, msg = _tcp_probe(s.mysql_host, s.mysql_port)

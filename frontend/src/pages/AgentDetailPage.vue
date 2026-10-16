@@ -18,6 +18,15 @@ const router = useRouter()
 const workspace = useWorkspaceStore()
 const ui = useUiStore()
 
+/** Agent 可查询的只读数据域，用于替代原「知识库绑定」展示 */
+const DATA_SOURCES = [
+  '人员 · 资质 · 实验室授权',
+  '门禁通行记录',
+  '危化品台账 · 领用记录',
+  '设备台账 · 借还记录 · 校准',
+  '安全规程 · 危化品管理制度 · SDS 摘要',
+]
+
 const agent = computed(() => workspace.findAgent(String(route.params.id)))
 const formOpen = ref(false)
 const confirmDelete = ref(false)
@@ -102,17 +111,16 @@ function doDelete() {
         </p>
       </section>
 
-      <!-- 知识库绑定 -->
+      <!-- 数据来源 -->
       <section class="panel p-4" aria-labelledby="kb-title">
-        <h2 id="kb-title" class="mb-3 text-[15px] font-semibold text-ink">知识库绑定（{{ agent.knowledgeIds.length }}）</h2>
-        <p v-if="!agent.knowledgeIds.length" class="text-[12px] text-ink-3">未绑定知识库，规程类问题将回答“未找到相关规定”。</p>
-        <ul v-else class="space-y-1.5">
-          <li v-for="id in agent.knowledgeIds" :key="id">
-            <RouterLink :to="`/knowledge/${id}`" class="flex items-center justify-between rounded-[var(--radius-control)] border border-line px-3 py-2 text-[13px] text-ink hover:border-brand hover:bg-brand-soft">
-              <span>{{ workspace.findKb(id)?.name ?? id }}</span>
-              <span class="text-[12px] text-ink-3">{{ workspace.findKb(id)?.chunkCount ?? 0 }} chunk</span>
-            </RouterLink>
-          </li>
+        <h2 id="kb-title" class="mb-3 text-[15px] font-semibold text-ink">数据来源</h2>
+        <p class="text-[12px] text-ink-3">
+          本 Agent 通过上方工具查询后端只读数据：人员资质与授权、危化品台账与领用、
+          设备台账与借还记录、安全规程与 SDS 语料。不绑定知识库，语料检索由
+          <code class="font-mono">search_policy</code> 工具完成。
+        </p>
+        <ul class="mt-3 flex flex-wrap gap-1.5">
+          <li v-for="src in DATA_SOURCES" :key="src" class="rounded border border-line bg-page px-2 py-0.5 text-[12px] text-ink-2">{{ src }}</li>
         </ul>
       </section>
 

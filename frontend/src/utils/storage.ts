@@ -1,5 +1,7 @@
 // LocalStorage 封装：带版本号，损坏或版本不兼容时安全回退到默认值，所有读写都 try/catch。
-export const STORAGE_VERSION = 1
+// 版本 2：实验室管理重构，workspace 结构由 RAG（知识库/文档/分块）改为实验室领域，
+// 旧存档一律回退为演示数据。
+export const STORAGE_VERSION = 2
 
 interface Envelope<T> {
   version: number

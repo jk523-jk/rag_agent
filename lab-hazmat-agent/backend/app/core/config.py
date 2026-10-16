@@ -91,25 +91,61 @@ class Settings(BaseSettings):
         """日志用的端点描述，不含口令。"""
         return f"{self.mysql_host}:{self.mysql_port}/{self.mysql_db}"
 
-    def resolve_ddl_path(self) -> Path | None:
-        """定位建表脚本。
+    def _ddl_dirs(self) -> list[Path]:
+        """建表脚本候选目录：本机仓库布局、容器挂载路径、相对 CWD。"""
+        return [
+            _PROJECT_ROOT / "mysql" / "init",   # 本机仓库布局
+            Path("/app/mysql/init"),            # 容器挂载路径
+            Path.cwd() / "mysql" / "init",
+            Path.cwd().parent / "mysql" / "init",
+        ]
 
-        原实现硬编码 `/app/mysql/init/01_schema.sql`，只在容器里成立，
-        本机或云端手工建库时会直接 FileNotFoundError。这里按候选路径依次探测。
+    def resolve_ddl_paths(self) -> list[Path]:
+        """定位**全部**建表脚本，供 NL2SQL 拼接表结构上下文。
+
+        原实现只认单个 `01_schema.sql`，导致后来新增的 `05_equipment.sql`
+        （equipment / equipment_loans）从未进入提示词——模型能猜列名却不知道
+        这两张表存在。这里改成扫描 init 目录下所有含 CREATE TABLE 的 .sql，
+        按文件名排序返回，今后新增建表脚本无需改代码即可自动纳入。
+
+        MYSQL_DDL_PATH 仍可显式覆盖：指向文件则只用该文件，指向目录则扫描其中脚本。
         """
         if self.mysql_ddl_path:
             p = Path(self.mysql_ddl_path)
-            return p if p.is_file() else None
-        candidates = [
-            _PROJECT_ROOT / "mysql" / "init" / "01_schema.sql",   # 本机仓库布局
-            Path("/app/mysql/init/01_schema.sql"),                 # 容器挂载路径
-            Path.cwd() / "mysql" / "init" / "01_schema.sql",
-            Path.cwd().parent / "mysql" / "init" / "01_schema.sql",
-        ]
-        for p in candidates:
             if p.is_file():
-                return p
-        return None
+                return [p]
+            if p.is_dir():
+                return _collect_ddl_scripts(p)
+            return []
+        for d in self._ddl_dirs():
+            if d.is_dir():
+                found = _collect_ddl_scripts(d)
+                if found:
+                    return found
+        return []
+
+    def resolve_ddl_path(self) -> Path | None:
+        """首个建表脚本。保留旧接口：日志与启动自检按「主脚本」展示。"""
+        paths = self.resolve_ddl_paths()
+        return paths[0] if paths else None
+
+
+def _collect_ddl_scripts(directory: Path) -> list[Path]:
+    """挑出目录中的建表脚本：内容含 CREATE TABLE 的 .sql，按文件名排序。
+
+    用内容判断而非文件名前缀：既能把 03_seed.sql / 07_lab_categories_seed.sql
+    这类纯 INSERT 脚本排除在外（数据行会白白撑大提示词、且与表结构无关），
+    也让未来任何新增的建表脚本自动生效。
+    """
+    found: list[Path] = []
+    for p in sorted(directory.glob("*.sql")):
+        try:
+            text = p.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if "create table" in text.lower():
+            found.append(p)
+    return found
 
 
 @lru_cache

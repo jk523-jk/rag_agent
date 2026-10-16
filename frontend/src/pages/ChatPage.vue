@@ -45,9 +45,7 @@ const lastSources = computed(() => {
 })
 
 const strategy = computed(() =>
-  workspace.state.settings.retrieval.hybrid
-    ? `混合检索（BM25 + 向量）· Top-K ${workspace.state.settings.retrieval.topK} · 阈值 ${workspace.state.settings.retrieval.scoreThreshold}`
-    : `向量检索 · Top-K ${workspace.state.settings.retrieval.topK} · 阈值 ${workspace.state.settings.retrieval.scoreThreshold}`,
+  '只读查询 · 准入判定 / 台账核查 / 设备校准',
 )
 
 onMounted(() => {

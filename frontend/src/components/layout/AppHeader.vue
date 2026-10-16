@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Menu, Search, CircleHelp, Plus, ChevronRight, Bot, Library, Workflow as WorkflowIcon } from 'lucide-vue-next'
+import { Menu, Search, CircleHelp, Plus, ChevronRight, Bot, Microscope, Users, Workflow as WorkflowIcon } from 'lucide-vue-next'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 const emit = defineEmits<{ (e: 'open-mobile'): void }>()
@@ -23,7 +23,7 @@ const crumbs = computed(() => {
   return list
 })
 
-// 全局搜索：至少覆盖 Agent、知识库、工作流名称，点击结果跳转
+// 全局搜索：覆盖 Agent、工作流、设备与人员名称，点击结果跳转
 const keyword = ref('')
 const open = ref(false)
 const results = computed(() => {
@@ -33,11 +33,18 @@ const results = computed(() => {
   for (const a of workspace.state.agents) {
     if (a.name.toLowerCase().includes(q)) hits.push({ key: a.id, label: a.name, sub: 'Agent', to: `/agents/${a.id}`, kind: 'agent' })
   }
-  for (const k of workspace.state.knowledgeBases) {
-    if (k.name.toLowerCase().includes(q)) hits.push({ key: k.id, label: k.name, sub: '知识库', to: `/knowledge/${k.id}`, kind: 'kb' })
-  }
   for (const w of workspace.state.workflows) {
     if (w.name.toLowerCase().includes(q)) hits.push({ key: w.id, label: w.name, sub: '工作流', to: `/workflows/${w.id}`, kind: 'wf' })
+  }
+  for (const e of workspace.state.equipment) {
+    if (e.equipName.toLowerCase().includes(q) || e.equipId.toLowerCase().includes(q)) {
+      hits.push({ key: e.id, label: e.equipName, sub: `设备 ${e.equipId}`, to: `/equipment/${e.id}`, kind: 'equip' })
+    }
+  }
+  for (const p of workspace.state.persons) {
+    if (p.name.toLowerCase().includes(q) || p.empNo.toLowerCase().includes(q)) {
+      hits.push({ key: p.id, label: p.name, sub: `人员 ${p.empNo}`, to: `/persons/${p.id}`, kind: 'person' })
+    }
   }
   return hits.slice(0, 8)
 })
@@ -56,7 +63,7 @@ function onKey(e: KeyboardEvent) {
 watch(() => route.path, () => { open.value = false })
 
 const quickAction = computed(() => {
-  if (route.path.startsWith('/knowledge')) return { label: '新建知识库', to: '/knowledge?create=1' }
+  if (route.path.startsWith('/equipment')) return { label: '新增设备', to: '/equipment?create=1' }
   if (route.path.startsWith('/workflows')) return { label: '新建工作流', to: '/workflows?create=1' }
   return { label: '新建 Agent', to: '/agents?create=1' }
 })
@@ -93,7 +100,7 @@ const quickAction = computed(() => {
           id="global-search"
           v-model="keyword"
           class="input pl-8"
-          placeholder="搜索 Agent、知识库、工作流…"
+          placeholder="搜索 Agent、工作流、设备、人员…"
           autocomplete="off"
           @focus="open = true"
           @blur="open = false"
@@ -114,7 +121,8 @@ const quickAction = computed(() => {
             @mousedown.prevent="go(r.to)"
           >
             <Bot v-if="r.kind === 'agent'" class="size-4 text-ink-3" aria-hidden="true" />
-            <Library v-else-if="r.kind === 'kb'" class="size-4 text-ink-3" aria-hidden="true" />
+            <Microscope v-else-if="r.kind === 'equip'" class="size-4 text-ink-3" aria-hidden="true" />
+            <Users v-else-if="r.kind === 'person'" class="size-4 text-ink-3" aria-hidden="true" />
             <WorkflowIcon v-else class="size-4 text-ink-3" aria-hidden="true" />
             <span class="truncate text-[13px] text-ink">{{ r.label }}</span>
             <span class="ml-auto text-[12px] text-ink-3">{{ r.sub }}</span>

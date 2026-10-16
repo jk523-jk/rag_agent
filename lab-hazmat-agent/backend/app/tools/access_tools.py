@@ -18,7 +18,6 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime
 from functools import lru_cache
-from pathlib import Path
 
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
@@ -266,22 +265,28 @@ DIALECT_PROMPT = """你是一个 MySQL 8 查询生成器。只输出一条 SELEC
 
 @lru_cache
 def _load_ddl() -> str:
-    """从建表脚本读取 DDL（含 COMMENT）作为 NL2SQL 的上下文。
+    """拼接全部建表脚本（含 COMMENT）作为 NL2SQL 的表结构上下文。
 
     刻意不查 information_schema —— 只读护栏已把它列为敏感库并拒绝访问。
-    路径由 config.resolve_ddl_path() 解析：原实现硬编码 /app/mysql/init/01_schema.sql，
-    只在容器里成立；接云数据库手工建库时该文件不存在，会 FileNotFoundError。
+    脚本清单由 config.resolve_ddl_paths() 给出：扫描 init 目录下所有含
+    CREATE TABLE 的 .sql。原实现只读 01_schema.sql 单文件，equipment 域
+    （定义在 05_equipment.sql）因此从未进入提示词，模型看不到这两张表。
     """
-    path: Path | None = get_settings().resolve_ddl_path()
-    if path is None:
+    paths = get_settings().resolve_ddl_paths()
+    if not paths:
         log.warning("未找到建表脚本，NL2SQL 将缺少表结构上下文")
         return "（未找到建表脚本，请依据列名常识谨慎生成 SQL）"
-    return path.read_text(encoding="utf-8")
+    log.info("NL2SQL 表结构上下文来源：%s", ", ".join(p.name for p in paths))
+    parts: list[str] = []
+    for p in paths:
+        parts.append(f"-- ===== {p.name} =====")
+        parts.append(p.read_text(encoding="utf-8").strip())
+    return "\n\n".join(parts)
 
 
 def ddl_available() -> bool:
     """供启动自检：DDL 是否可读。"""
-    return get_settings().resolve_ddl_path() is not None
+    return bool(get_settings().resolve_ddl_paths())
 
 
 async def _generate_sql(question: str) -> str:

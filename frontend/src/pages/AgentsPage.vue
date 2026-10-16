@@ -47,15 +47,10 @@ const columns: Column[] = [
   { key: 'name', label: '名称', sortable: false },
   { key: 'model', label: '模型' },
   { key: 'tools', label: '工具', align: 'right' },
-  { key: 'knowledge', label: '知识库' },
   { key: 'status', label: '状态' },
   { key: 'lastRunAt', label: '最近运行' },
   { key: 'actions', label: '', align: 'right' },
 ]
-
-function kbNames(a: Agent) {
-  return a.knowledgeIds.map((id) => workspace.findKb(id)?.name ?? id).join('、') || '—'
-}
 
 function openCreate() {
   editing.value = null
@@ -163,7 +158,6 @@ function doDelete() {
       <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
         <div><dt class="text-ink-3">使用模型</dt><dd class="text-ink">{{ a.model }}</dd></div>
         <div><dt class="text-ink-3">工具数量</dt><dd class="text-ink tabular-nums">{{ a.tools.length }}</dd></div>
-        <div class="col-span-2"><dt class="text-ink-3">关联知识库</dt><dd class="truncate text-ink">{{ kbNames(a) }}</dd></div>
         <div><dt class="text-ink-3">最近运行</dt><dd class="text-ink tabular-nums">{{ a.lastRunAt }}</dd></div>
       </dl>
 
@@ -180,7 +174,6 @@ function doDelete() {
       <span class="font-medium text-ink">{{ row.name }}</span>
     </template>
     <template #tools="{ row }">{{ row.tools.length }}</template>
-    <template #knowledge="{ row }">{{ kbNames(row) }}</template>
     <template #status="{ row }">
       <StatusBadge :status="row.status === 'enabled' ? 'success' : 'disabled'" :label="row.status === 'enabled' ? '启用中' : '已停用'" />
     </template>

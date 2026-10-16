@@ -4,7 +4,8 @@ from __future__ import annotations
 import logging
 import sys
 
-_MASK_KEYS = {"name", "person_name", "emp_no", "cert_no", "quantity", "witness_id"}
+_MASK_KEYS = {"name", "person_name", "emp_no", "cert_no", "quantity", "witness_id",
+              "keeper", "approver", "holder_name"}
 
 
 def scrub(payload: dict) -> dict:

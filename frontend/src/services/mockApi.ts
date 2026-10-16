@@ -1,7 +1,6 @@
 // 模拟后端服务层。所有函数都是异步的，用来演示加载态；页面组件不得直接访问 mocks。
 // 失败场景可通过 options.fail 触发，便于测试错误提示与重试。
 import type { RunStep, Workflow, EvalTask, LogEntry } from '@/types'
-import { retrievalPresets } from '@/mocks/data'
 
 export interface MockOptions {
   delay?: number
@@ -17,18 +16,6 @@ export function simulate<T>(value: () => T, { delay = 600, fail = false }: MockO
       else resolve(value())
     }, delay)
   })
-}
-
-export function runRetrieval(
-  mode: 'bm25' | 'vector' | 'hybrid',
-  opts: MockOptions = {},
-) {
-  return simulate(() => {
-    const bm25 = retrievalPresets.bm25
-    const vector = retrievalPresets.vector
-    const merged = mode === 'hybrid' ? [...bm25, ...vector] : mode === 'bm25' ? bm25 : vector
-    return { bm25: mode === 'vector' ? [] : bm25, vector: mode === 'bm25' ? [] : vector, merged, isMock: true as const }
-  }, { delay: 700, ...opts })
 }
 
 export function runWorkflow(workflow: Workflow, opts: MockOptions & { failAt?: string } = {}) {
