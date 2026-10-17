@@ -78,9 +78,6 @@ chroma/
 data/chroma/
 *.sqlite3
 
-# MySQL 数据卷（docker compose 管理，不应进仓库）
-mysql_data/
-
 # 日志
 logs/
 *.log

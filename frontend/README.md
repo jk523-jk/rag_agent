@@ -52,15 +52,29 @@ npx vue-tsc -b
 
 后端模式需要先启动 FastAPI 服务；开发时 `/api` 由 Vite 代理到 `http://localhost:8000`。
 
-## Docker 部署
+## 构建与部署
 
 ```bash
-docker build --build-arg VITE_API_MODE=backend -t lab-hazmat-frontend .
+npm run build
 ```
 
-镜像内 `nginx.conf` 已对 `/api/` 关闭 `proxy_buffering`，保证流式输出不被攒批。
+产物在 `dist/`，是纯静态站点，交给任意静态服务器即可。`/api` 需反向代理到 FastAPI（开发期由 `vite.config.ts` 提供代理，接真实后端时无需改前端代码）。
 
-开发服务器已配置 `/api` 代理到 `http://localhost:8000`，接入真实后端时无需改动前端代码。
+流式问答走 SSE，反向代理**必须关闭缓冲**，否则回答会攒到结束才一次性吐出：
+
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 300s;
+    add_header X-Accel-Buffering no;
+}
+```
+
+本地一键起服（前后端一起）在仓库根目录：`.\start.ps1`。
 
 ## 目录结构
 

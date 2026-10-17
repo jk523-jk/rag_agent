@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     llm_timeout: int = 60
 
     # ---- MySQL ----
-    # 本地 Docker 默认值；接云数据库时改成云实例地址（内网地址更快且不计公网流量）
+    # 本机 MySQL 默认值；接云数据库时改成云实例地址（内网地址更快且不计公网流量）
     mysql_host: str = "mysql"
     mysql_port: int = 3306
     mysql_db: str = "lab_hazmat"
