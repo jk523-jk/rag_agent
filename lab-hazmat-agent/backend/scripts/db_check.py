@@ -60,7 +60,7 @@ async def main() -> int:
     failures = 0
 
     print("=" * 68)
-    print("实验室危化品准入系统 · 云数据库连通性自检")
+    print("实验室安全与资产治理平台 · 云数据库连通性自检")
     print("=" * 68)
     print("\n[0] 生效配置")
     print(f"{INFO} 端点      : {s.mysql_endpoint}")

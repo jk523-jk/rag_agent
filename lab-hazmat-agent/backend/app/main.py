@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     s = get_settings()
     setup_logging(s.log_level)
-    log.info("启动 lab-hazmat-agent | MySQL=%s ssl=%s chroma=%s",
+    log.info("启动 lab-hazmat-agent（实验室安全与资产治理平台）| MySQL=%s ssl=%s chroma=%s",
              s.mysql_endpoint, bool(s.mysql_ssl_args), s.chroma_dir)
 
     await init_pool()                 # 失败不抛，由 /api/health 暴露状态
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     await close_pool()
 
 
-app = FastAPI(title="lab-hazmat-agent", lifespan=lifespan)
+app = FastAPI(title="实验室安全与资产治理智能问答平台", lifespan=lifespan)
 
 _settings = get_settings()
 app.add_middleware(

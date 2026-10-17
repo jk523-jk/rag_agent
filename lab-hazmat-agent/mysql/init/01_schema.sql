@@ -1,4 +1,4 @@
--- 实验室危化品准入智能问答系统 · 库表结构
+-- 实验室安全与资产治理平台 · 库表结构（业务域：环境/人员/物料）
 -- 库名 lab_hazmat。字段英文、中文含义写 COMMENT（COMMENT 会注入 NL2SQL 提示词）。
 CREATE DATABASE IF NOT EXISTS lab_hazmat
   DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

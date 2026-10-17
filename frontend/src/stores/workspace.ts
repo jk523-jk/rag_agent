@@ -38,7 +38,7 @@ interface WorkspaceState {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   version: 1,
-  workspaceName: '危化品准入工作区',
+  workspaceName: '实验室治理工作区',
   model: { name: 'qwen-plus', temperature: 0, maxTokens: 2048, timeoutSec: 60 },
   appearance: { theme: 'light', density: 'comfortable' },
 }

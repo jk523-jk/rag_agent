@@ -145,7 +145,7 @@ const promptExamples = [
     <!-- 消息区 -->
     <div ref="scroller" class="flex-1 overflow-y-auto px-4 py-5">
       <div v-if="!session || !messages.length" class="mx-auto max-w-2xl py-8">
-        <h3 class="text-[16px] font-semibold text-ink">向危化品准入助手提问</h3>
+        <h3 class="text-[16px] font-semibold text-ink">向实验室治理助手提问</h3>
         <p class="mt-1 text-[13px] text-ink-2">
           本系统只读：可查资质、授权、通行记录、台账与规程，不能修改任何数据。
         </p>

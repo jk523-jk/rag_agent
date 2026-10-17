@@ -9,7 +9,7 @@ export const agents: Agent[] = [
     id: 'agt-access', name: '准入判定助手', icon: 'shield',
     description: '判定某人某时能否进入某实验室，逐条校验资质闸、授权闸、双人闸。',
     model: 'qwen-plus', temperature: 0, maxTokens: 2048,
-    systemPrompt: '你是实验室危化品准入助手，只能查询，不能修改数据。判断准入必须调用 check_lab_access。',
+    systemPrompt: '你是实验室安全与资产治理助手，只能查询，不能修改数据。判断准入必须调用 check_lab_access。',
     tools: ['check_lab_access', 'get_person_qualification', 'query_records'],
     status: 'enabled', lastRunAt: '2026-10-15 09:42', runCount: 486,
   },
