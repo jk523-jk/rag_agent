@@ -480,6 +480,122 @@ def test_agents() -> None:
             reset_store()
 
 
+# ============================ 10. 回答后置校验 ============================
+
+def test_verify() -> None:
+    """模型复述必须与工具证据一致。三类实测错误各有用例。"""
+    g = "校验"
+    from app.agent.verify import SAFE_REPLY, verify_reply
+
+    # —— A. 日期类 ——
+    r = verify_reply(
+        "数据截至 2024-04-05 16:30，结存少量。",
+        ["台账结存：\n- 氰化钾｜结存 少量（不足 5 克）｜数据截至 2026-10-16 20:37"],
+        question="氰化钾还有多少？",
+    )
+    check(g, "「数据截至」被改成证据日期", "2026-10-16" in r.reply and "2024-04-05" not in r.reply, r.reply[:80])
+    check(g, "校正后标注已校正", "已按查询结果校正" in r.reply)
+    eq(g, "校正严重度", r.severity, "medium")
+
+    r2 = verify_reply(
+        "该设备校准有效期为 2023-01-01。",
+        ["设备：EQ-0002｜校准 已过期 22 天（有效期至 2026-09-26）"],
+        question="EQ-0002 校准什么时候到期？",
+    )
+    check(g, "凭空日期追加提示而不改正文", "未在本次查询结果中出现" in r2.reply and "2023-01-01" in r2.reply)
+
+    r3 = verify_reply(
+        "资质有效期至 2026-10-06，已过期 12 天。",
+        ["安全考试合格证｜2025-10-07 ~ 2026-10-06"],
+        question="王某资质还有效吗？",
+    )
+    check(g, "证据中存在的日期不误报", r3.ok and not r3.issues, str(r3.issues))
+
+    r4 = verify_reply(
+        "按 2026-09-01 判定，可进入。",
+        ["（无工具返回）"],
+        question="2026-09-01 王某能不能进 LAB-3？",
+    )
+    check(g, "用户指定日期不误判为臆造", r4.ok, str(r4.issues))
+
+    # —— B. 数量区间 ——
+    r5 = verify_reply(
+        "结存约 10–50 克。",
+        ["- 氰化钾｜剧毒品｜结存 少量（不足 5 克）（该类物品精确数量不予提供）"],
+        question="氰化钾还有多少？",
+    )
+    check(g, "错区间被替换为证据原文", "少量（不足 5 克）" in r5.reply and "10–50" not in r5.reply, r5.reply[:80])
+
+    r6 = verify_reply(
+        "丙酮约 20–30 瓶。",
+        ["- 丙酮｜易燃液体｜结存 约 5–10 瓶"],
+        question="丙酮还有多少？",
+    )
+    check(g, "瓶数区间被替换", "约 5–10 瓶" in r6.reply and "20–30" not in r6.reply)
+
+    r7 = verify_reply(
+        "结存 少量（不足 5 克）。",
+        ["结存 少量（不足 5 克）"],
+        question="氰化钾还有多少？",
+    )
+    check(g, "区间一致时不改动", r7.ok, str(r7.issues))
+
+    r8 = verify_reply(
+        "A 约 20–30 瓶，B 约 30–40 克。",
+        ["A 约 5–10 瓶｜B 少量（不足 5 克）"],
+        question="两种化学品各有多少？",
+    )
+    check(g, "按单位分别替换，不串用", "约 5–10 瓶" in r8.reply and "少量（不足 5 克）" in r8.reply,
+          r8.reply[:100])
+
+    # —— C. 准入结论 ——
+    r9 = verify_reply(
+        "结论：准予进入。",
+        ["人员：王某｜资质闸：未通过｜结论：资质过期"],
+        question="王某能不能进入 LAB-3？",
+    )
+    check(g, "无依据的准入结论被作废", r9.reply == SAFE_REPLY, r9.reply[:60])
+    eq(g, "作废结论严重度", r9.severity, "high")
+
+    r10 = verify_reply(
+        "结论：准予进入。",
+        ["结论：准予进入｜三闸全部通过"],
+        question="王某能不能进入 LAB-3？",
+    )
+    check(g, "有依据的准入结论保留", r10.reply != SAFE_REPLY, r10.reply[:60])
+
+    # —— D. 事实类问题却零工具调用（实测：模型直接编出库存与日期）——
+    from app.agent.verify import NO_EVIDENCE_REPLY
+
+    r11 = verify_reply(
+        "剧毒品间的氰化钾库存量为：少量（不足 5 克）。数据截至 2024-04-15。",
+        [],
+        question="剧毒品间的氰化钾还有多少？",
+    )
+    check(g, "无工具调用的事实类回答被整体作废", r11.reply == NO_EVIDENCE_REPLY, r11.reply[:60])
+    eq(g, "无依据严重度", r11.severity, "high")
+
+    r12 = verify_reply("你好！我是实验室安全与资产治理助手。", [], question="你好")
+    check(g, "寒暄类不误杀", r12.ok and r12.reply.startswith("你好"), str(r12.issues))
+
+    # —— E. 工具说"未找到"，模型却给出数值 ——
+    from app.agent.verify import NOT_FOUND_REPLY
+
+    r13 = verify_reply(
+        "结存 少量（不足 5 克）。数据截至 2024-04-15。",
+        ["未找到名为「氰化钾」的台账条目，但库中有相近名称：氰化钾（CAS 151-50-8）。"],
+        question="剧毒品间的氰化钾还有多少？",
+    )
+    check(g, "未查到时编造数值被作废", r13.reply == NOT_FOUND_REPLY, r13.reply[:60])
+
+    r14 = verify_reply(
+        "台账中没有名为「氰化钾」的条目，库里有相近名称：氰化钾，请确认。",
+        ["未找到名为「氰化钾」的台账条目，但库中有相近名称：氰化钾（CAS 151-50-8）。"],
+        question="氰化钾还有多少？",
+    )
+    check(g, "如实转述未找到不误杀", r14.ok, str(r14.issues))
+
+
 GROUPS = {
     "guard": test_guard,
     "sql": test_sql_guard,
@@ -491,6 +607,7 @@ GROUPS = {
     "equip": test_equipment_calibration,
     "config": test_config,
     "agents": test_agents,
+    "verify": test_verify,
 }
 
 

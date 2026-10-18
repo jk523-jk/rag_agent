@@ -64,7 +64,10 @@ async function runTest() {
       q,
       `test-${agent.value.id}-${Date.now()}`,
       agent.value.id,
-      (delta) => { testOutput.value += delta },
+      {
+        onDelta: (delta) => { testOutput.value += delta },
+        onReplace: (text) => { testOutput.value = text },
+      },
       controller.signal,
     )
     testElapsed.value = Math.round(performance.now() - started)

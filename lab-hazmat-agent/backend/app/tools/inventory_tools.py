@@ -70,6 +70,25 @@ WHERE chem_name LIKE CONCAT('%%', %(chem)s, '%%')
 LIMIT 10
 """
 
+# 实验室编号/名称互转：模型经常把「剧毒品间」当成 lab_id 传进来（实测），
+# 直接拿去过滤会命中 0 行，进而被误判成「台账没有这条记录」。
+_SQL_LAB_LOOKUP = """
+SELECT lab_id, lab_name FROM labs
+WHERE lab_id = %(key)s OR lab_name = %(key)s
+LIMIT 1
+"""
+
+
+async def _resolve_lab(lab_id: str | None) -> tuple[str | None, str]:
+    """把实验室编号或名称统一成编号。无法识别时返回 (None, 提示语)。"""
+    if not lab_id or not str(lab_id).strip():
+        return None, ""
+    key = str(lab_id).strip()
+    rows = await fetch_all(_SQL_LAB_LOOKUP, {"key": key})
+    if rows:
+        return rows[0]["lab_id"], ""
+    return None, f"未识别实验室「{key}」。可用编号 LAB-1 ~ LAB-5，或实验室名称（如「剧毒品间」）。"
+
 
 @tool
 async def query_inventory(chem: str, lab_id: str | None = None) -> str:
@@ -78,18 +97,35 @@ async def query_inventory(chem: str, lab_id: str | None = None) -> str:
     剧毒品与易制爆的精确结存数量一律按区间返回，不提供精确值。
     化学品名称支持 CAS 号或名称；名称匹配失败时会明确告知，不会静默返回空。
     """
+    lab_id, lab_note = await _resolve_lab(lab_id)
+    if lab_note:
+        return lab_note
     rows = await fetch_all(_SQL_INVENTORY, {"chem": chem, "lab_id": lab_id})
+    hint = ""
     if not rows:
         fuzzy = await fetch_all(_SQL_FUZZY, {"chem": chem})
-        if fuzzy:
+        if len(fuzzy) == 1:
+            # 唯一候选：直接按候选再查一次，把数据给出来。
+            # 原实现只回一句"未找到，但有相近名称"，模型拿到这种半截信息后
+            # 容易自己编数量（实测编出「少量（不足 5 克）」和「数据截至 2024-04-15」）。
+            cand = fuzzy[0]
+            key = cand["cas_no"] or cand["chem_name"]
+            rows = await fetch_all(_SQL_INVENTORY, {"chem": key, "lab_id": lab_id})
+            if rows:
+                hint = (
+                    f"说明：未精确匹配「{chem}」，已按唯一相近条目"
+                    f"「{cand['chem_name']}」（CAS {cand['cas_no'] or '未登记'}）返回。\n"
+                )
+        if not rows and fuzzy:
             cands = "、".join(
                 f"{r['chem_name']}（CAS {r['cas_no'] or '未登记'}）" for r in fuzzy
             )
             return (
-                f"未找到名为「{chem}」的台账条目，但库中有相近名称：{cands}。"
-                "请确认目标化学品（别名情况常见，如「双氧水」在台账中登记为「过氧化氢」）。"
+                f"未找到名为「{chem}」的台账条目，库中有多个相近名称：{cands}。"
+                "请确认具体是哪一个（可用 CAS 号）。"
             )
-        return f"台账中不存在「{chem}」，也未找到相近名称。请确认名称或直接提供 CAS 号。"
+        if not rows:
+            return f"台账中不存在「{chem}」，也未找到相近名称。请确认名称或直接提供 CAS 号。"
 
     lines: list[str] = []
     for r in rows:
@@ -101,7 +137,7 @@ async def query_inventory(chem: str, lab_id: str | None = None) -> str:
             f"{r['lab_id']} {r['cabinet_no'] or '柜位未登记'}｜结存 {qty_text}｜"
             f"数据截至 {updated_text}"
         )
-    return "台账结存：\n" + "\n".join(lines)
+    return hint + "台账结存：\n" + "\n".join(lines)
 
 
 _SQL_STOCK = """
@@ -141,6 +177,9 @@ async def reconcile_inventory(
     """
     if days <= 0:
         return "回溯天数必须为正整数。"
+    lab_id, lab_note = await _resolve_lab(lab_id)
+    if lab_note:
+        return lab_note
     params = {"chem": chem, "lab_id": lab_id, "days": days}
 
     # 三查并行：互不依赖，串行要等三次往返。任一失败不应让整次校验崩掉。
@@ -160,7 +199,28 @@ async def reconcile_inventory(
         policy_docs = []                       # 制度依据缺失不阻断比对结论
 
     if not stock_rows:
-        return f"未在 {lab_id} 找到「{chem}」的台账条目，无法比对。请先确认化学品名称或 CAS 号。"
+        # 精确名没命中时，用模糊候选兜底：唯一候选直接采纳，多个候选要求用户确认。
+        # 不加这一步，模型会拿到"未找到"却仍编出数字（实测 3 次里 2 次如此）。
+        fuzzy = await fetch_all(_SQL_FUZZY, {"chem": chem})
+        if len(fuzzy) == 1:
+            cand = fuzzy[0]
+            key = cand["cas_no"] or cand["chem_name"]
+            retry_params = {"chem": key, "lab_id": lab_id, "days": days}
+            stock_rows = await fetch_all(_SQL_STOCK, retry_params)
+            if stock_rows:
+                use_rows = await fetch_all(_SQL_USES, retry_params)
+                chem_note = (
+                    f"（未精确匹配「{chem}」，已按唯一相近条目「{cand['chem_name']}」核对）"
+                )
+            else:
+                return f"未在 {lab_id} 找到「{cand['chem_name']}」的台账条目，无法比对。"
+        elif fuzzy:
+            cands = "、".join(f"{r['chem_name']}（CAS {r['cas_no'] or '未登记'}）" for r in fuzzy)
+            return f"未在 {lab_id} 找到「{chem}」，库中有多个相近条目：{cands}。请指定其中一个。"
+        else:
+            return f"未在 {lab_id} 找到「{chem}」的台账条目，无法比对。请先确认化学品名称或 CAS 号。"
+    else:
+        chem_note = ""
 
     stock = stock_rows[0]
     used = float(use_rows[0]["used_qty"] or 0)
@@ -168,22 +228,33 @@ async def reconcile_inventory(
     no_witness = int(use_rows[0]["no_witness_count"] or 0)
     book = float(stock["quantity"])
     unit = stock["unit"]
+    serious = is_sensitive(stock["hazard_class"])
     s = get_settings()
     threshold = max(s.loss_threshold_abs, book * s.loss_threshold_ratio)
 
     if opening_qty is not None:
         expected = float(opening_qty) - used
         diff = book - expected
-        basis = f"期初 {opening_qty:g}{unit} − 期间领用 {used:g}{unit} = 应有结存 {expected:g}{unit}"
+        basis = (
+            "已提供期初结存，按区间口径比对（精确差值不予提供）"
+            if serious else
+            f"期初 {opening_qty:g}{unit} − 期间领用 {used:g}{unit} = 应有结存 {expected:g}{unit}"
+        )
     else:
         diff = used - book                      # 无期初时：领用超过结存即为不符信号
-        basis = f"期间领用合计 {used:g}{unit}（未提供期初结存，按周转校验）"
+        # 敏感类别的领用量同样要区间化：这里若写精确值，等于从"比对口径"泄漏库存
+        used_text = to_interval(used, unit) if used > 0 else "无"
+        basis = (
+            f"期间领用合计 {used_text}（未提供期初结存，按周转校验）"
+            if serious else
+            f"期间领用合计 {used:g}{unit}（未提供期初结存，按周转校验）"
+        )
 
     is_anomaly = abs(diff) > threshold
     verdict = "存在账物不符，需要核实" if is_anomaly else "在合理损耗范围内，暂未发现异常"
 
     # 敏感类别：比对结论可以给，但结存与领用量都必须区间化，否则从数字反推得出精确库存
-    sensitive = is_sensitive(stock["hazard_class"])
+    sensitive = serious
     if sensitive:
         book_text = to_interval(book, unit)
         used_text = to_interval(used, unit) if used > 0 else "无"
@@ -194,6 +265,7 @@ async def reconcile_inventory(
         diff_text = f"{diff:+g}{unit}"
 
     lines = [
+        *([chem_note] if chem_note else []),
         f"化学品：{stock['chem_name']}（CAS {stock['cas_no'] or '未登记'}）｜{lab_id} "
         f"{stock['cabinet_no'] or '柜位未登记'}｜类别 {stock['hazard_class']}",
         f"台账结存：{book_text}",

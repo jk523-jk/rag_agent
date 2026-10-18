@@ -67,7 +67,11 @@ function runStream(question: string, replaceMessageId?: string) {
 
   // 后端模式走真实 SSE；模拟模式走本地引擎。两者都能被“停止生成”中断并保留已输出内容
   const request: Promise<SimAnswer & { aborted: boolean }> = useBackend
-    ? streamChatFromBackend(question, s.id, s.agentId, onDelta, signal)
+    ? streamChatFromBackend(question, s.id, s.agentId, {
+        onDelta,
+        // 后端核对发现日期/区间被改写、或准入结论缺依据时，会下发全文替换
+        onReplace: (text) => { streamingText.value = text },
+      }, signal)
         .then(() => ({ text: streamingText.value, sources: [], refused: false, aborted: false }))
         .catch((err: unknown) => {
           if (signal.aborted) return { text: streamingText.value, sources: [], refused: false, aborted: true }
