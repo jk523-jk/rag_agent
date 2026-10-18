@@ -23,6 +23,31 @@ COLLECTION = "lab_policy"
 COLLECTION_CONFIG = {"hnsw": {"space": "cosine"}}
 
 
+@lru_cache
+def known_doc_names() -> tuple[str, ...]:
+    """语料文件名（即 doc_name），用于把问题绑定到具体文档。
+
+    语料目录取 CHROMA_DIR 的上一级（默认 <项目根>/corpus）。
+    """
+    s = get_settings()
+    corpus = s.chroma_path.parent
+    names = [p.stem for p in sorted(corpus.glob("*.md"))]
+    names += [p.stem for p in sorted((corpus / "sds").glob("*.md"))]
+    return tuple(names)
+
+
+def match_docs(question: str) -> list[str]:
+    """问题里出现的化学品/文档名。
+
+    为什么要做这一步：SDS 按四段硬隔离只保证**单个文档内**不串段，
+    但检索时问「丙酮着火」仍可能召回《氰化钾》的灭火条目——实测模型据此
+    回答「丙酮着火用雾状水」（错，丙酮与水互溶）。语料里每个 SDS 都以
+    化学品名命名，所以问题里出现哪个名字，就把检索限定在那份文档。
+    """
+    q = question or ""
+    return [n for n in known_doc_names() if n and n in q]
+
+
 def _embeddings() -> OpenAIEmbeddings:
     s = get_settings()
     return OpenAIEmbeddings(
@@ -68,6 +93,13 @@ async def retrieve_policy(
     where: dict = {}
     if doc_name:
         where["doc_name"] = doc_name
+    else:
+        # 问题里点了名就锁定文档：问「丙酮着火」不准拿《氰化钾》的灭火条目来答
+        docs = match_docs(query)
+        if len(docs) == 1:
+            where["doc_name"] = docs[0]
+        elif len(docs) > 1:
+            where["doc_name"] = {"$in": docs}
     if kind:
         where["kind"] = kind
 

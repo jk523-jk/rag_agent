@@ -55,9 +55,9 @@ function onMove(e: PointerEvent) {
       @pointermove="onMove"
       @pointerleave="hovered = null"
     >
-      <g class="text-[11px]" fill="#64748B">
+      <g class="text-[11px]" fill="#8a857c">
         <g v-for="t in ticks" :key="t">
-          <line :x1="PAD.l" :x2="W - PAD.r" :y1="yAt(t)" :y2="yAt(t)" stroke="#E2E8F0" />
+          <line :x1="PAD.l" :x2="W - PAD.r" :y1="yAt(t)" :y2="yAt(t)" stroke="#d9d2c5" />
           <text :x="PAD.l - 8" :y="yAt(t) + 4" text-anchor="end">{{ Math.round(t) }}</text>
         </g>
         <text
@@ -71,11 +71,11 @@ function onMove(e: PointerEvent) {
       </g>
 
       <path :d="areaPath" fill="rgba(79,70,229,0.08)" />
-      <path :d="linePath" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linejoin="round" />
+      <path :d="linePath" fill="none" stroke="#2f2c28" stroke-width="2" stroke-linejoin="round" />
 
       <template v-if="hovered !== null">
-        <line :x1="xAt(hovered)" :x2="xAt(hovered)" :y1="PAD.t" :y2="PAD.t + plotH" stroke="#94A3B8" stroke-dasharray="3 3" />
-        <circle :cx="xAt(hovered)" :cy="yAt(data[hovered].value)" r="4" fill="#4F46E5" stroke="#FFFFFF" stroke-width="2" />
+        <line :x1="xAt(hovered)" :x2="xAt(hovered)" :y1="PAD.t" :y2="PAD.t + plotH" stroke="#8a857c" stroke-dasharray="3 3" />
+        <circle :cx="xAt(hovered)" :cy="yAt(data[hovered].value)" r="4" fill="#2f2c28" stroke="#f5f0e8" stroke-width="2" />
       </template>
     </svg>
 

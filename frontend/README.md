@@ -1,9 +1,9 @@
-# 实验室安全与资产治理智能问答平台 · 前端工作台（Nexus AI Workspace）
+# 实验室智能管理agent · 前端工作台
 
-只读问答 Agent 的前端界面。当前阶段**只做前端**：不连接后端、大模型、MySQL 或向量库，全部业务数据来自本地模拟层。
+只读问答 Agent 的前端界面。`VITE_API_MODE=backend` 时连接真实后端（MySQL + 向量库 + 大模型），`mock` 时使用本地演示数据。
 
-- 技术栈：Vue 3 + TypeScript + Vite + Tailwind CSS v4 + Vue Router + Pinia + Lucide + Vue Flow + marked + Vitest（趋势图为手写 SVG，不依赖图表库）
-- 设计规范：极简工作台风格，配色、圆角、间距与排版按设计要求集中定义在 `src/styles/main.css` 的 CSS 变量中
+- 技术栈：Vue 3 + TypeScript + Vite + Tailwind CSS v4 + Vue Router + Pinia + Lucide + marked + Vitest（趋势图为手写 SVG，不依赖图表库）
+- 设计规范：日式水墨（sumi-e）风格：暖调灰阶、墨迹分隔线、宋体标题；配色与间距集中定义在 `src/styles/main.css` 的 CSS 变量中
 
 ## 快速开始
 

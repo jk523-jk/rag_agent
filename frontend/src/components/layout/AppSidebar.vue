@@ -34,11 +34,29 @@ const isActive = (path: string) => route.path === path || route.path.startsWith(
   >
     <!-- 品牌区 -->
     <div class="flex h-14 items-center gap-2.5 px-4 border-b border-line">
-      <RouterLink to="/dashboard" class="flex items-center gap-2.5 min-w-0" aria-label="返回工作台">
-        <span class="grid size-7 shrink-0 place-items-center rounded-[6px] bg-brand text-white text-[13px] font-semibold">N</span>
+      <RouterLink to="/dashboard" class="flex items-center gap-2.5 min-w-0" aria-label="实验室智能管理agent · 返回工作台">
+        <!-- 品牌标记：一枚未闭合的圆相（円相），比实心字母更接近水墨气质 -->
+        <svg viewBox="0 0 32 32" class="size-7 shrink-0" aria-hidden="true">
+          <path
+            d="M22.5 6.4C18 3.1 11.2 3.6 7.3 8.1 3 13.1 3.9 21 9.4 24.6c5.2 3.4 12.6 2 15.6-3.3 1.6-2.9 1.4-6.4-.4-9.1"
+            fill="none"
+            stroke="#1a1a1a"
+            stroke-width="2.1"
+            stroke-linecap="round"
+            stroke-opacity="0.86"
+          />
+          <path
+            d="M25.4 12.6c1.3 3.4.6 7.3-1.9 10"
+            fill="none"
+            stroke="#1a1a1a"
+            stroke-width="3.4"
+            stroke-linecap="round"
+            stroke-opacity="0.22"
+          />
+        </svg>
         <span v-show="!collapsed || mobileOpen" class="min-w-0 leading-tight">
-          <span class="block text-[14px] font-semibold text-ink">Nexus AI</span>
-          <span class="block text-[12px] text-ink-2">Workspace</span>
+          <span class="block truncate text-[14px] font-medium text-ink">实验室智能管理</span>
+          <span class="block text-[11px] tracking-[0.18em] text-ink-3">AGENT</span>
         </span>
       </RouterLink>
       <button

@@ -595,6 +595,33 @@ def test_verify() -> None:
     )
     check(g, "如实转述未找到不误杀", r14.ok, str(r14.issues))
 
+    # —— F. 证据里没有「数据截至」时，时间锚点以服务器当天为准 ——
+    r15 = verify_reply(
+        "校准过期清单如下。（清单截至 2024-10-18）",
+        ["EQ-0002｜已过期 22 天（有效期至 2026-09-26）"],
+        question="哪些设备校准过期了？",
+        now_text="2026-10-18 23:10",
+    )
+    check(g, "年份写错的时间锚点改为服务器当天",
+          "2026-10-18" in r15.reply and "2024-10-18" not in r15.reply, r15.reply[:80])
+
+
+# ============================ 11. 检索文档绑定 ============================
+
+def test_retrieval_binding() -> None:
+    """问丙酮只能检索丙酮的 SDS，不能拿氰化钾的灭火条目来答。"""
+    g = "检索"
+    from app.rag.retriever import known_doc_names, match_docs
+
+    names = known_doc_names()
+    check(g, "能枚举语料文档", len(names) >= 5, str(names))
+
+    eq(g, "丙酮问题锁定丙酮", match_docs("丙酮着火用什么灭火剂"), ["丙酮"])
+    eq(g, "别名问题锁定硝酸", match_docs("硝酸储存有什么要求"), ["硝酸"])
+    two = match_docs("丙酮和硝酸能放在同一个柜子吗")
+    check(g, "多化学品问题锁定多份文档", set(two) == {"丙酮", "硝酸"}, str(two))
+    eq(g, "未点名时不做限制", match_docs("易燃液体怎么存放"), [])
+
 
 GROUPS = {
     "guard": test_guard,
@@ -608,6 +635,7 @@ GROUPS = {
     "config": test_config,
     "agents": test_agents,
     "verify": test_verify,
+    "retrieve": test_retrieval_binding,
 }
 
 

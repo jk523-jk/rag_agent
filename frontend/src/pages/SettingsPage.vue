@@ -206,7 +206,7 @@ const storageRows = computed<StorageRow[]>(() => [
             </div>
           </div>
           <label class="flex items-center gap-2 text-[13px] text-ink">
-            <input type="checkbox" class="accent-[#4F46E5] opacity-60" disabled />
+            <input type="checkbox" class="accent-[#2f2c28] opacity-60" disabled />
             尊重系统“减少动态效果”设置（自动生效，无需配置）
           </label>
         </div>

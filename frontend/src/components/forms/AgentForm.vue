@@ -121,7 +121,7 @@ async function submit() {
         <legend class="label">可用工具</legend>
         <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           <label v-for="t in TOOL_OPTIONS" :key="t.id" class="flex items-start gap-2 rounded-[var(--radius-control)] border border-line px-3 py-2 text-[13px] has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
-            <input type="checkbox" class="mt-1 accent-[#4F46E5]" :checked="form.tools.includes(t.id)" @change="toggle('tools', t.id)" />
+            <input type="checkbox" class="mt-1 accent-[#2f2c28]" :checked="form.tools.includes(t.id)" @change="toggle('tools', t.id)" />
             <span><span class="block text-ink">{{ t.id }}</span><span class="block text-[12px] text-ink-3">{{ t.desc }}</span></span>
           </label>
         </div>

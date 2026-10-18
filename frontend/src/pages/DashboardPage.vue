@@ -6,6 +6,10 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import InkDivider from '@/components/common/InkDivider.vue'
+import PageSection from '@/components/common/PageSection.vue'
+import FadeInOnScroll from '@/components/common/FadeInOnScroll.vue'
+import QuoteBlock from '@/components/common/QuoteBlock.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { chatTrend } from '@/mocks/trend'
 import type { LogEntry } from '@/types'
@@ -103,8 +107,11 @@ function openLog(log: LogEntry) {
     </template>
   </p>
 
+  <InkDivider class="mt-5" />
+
   <!-- 核心指标 -->
-  <section aria-label="核心指标" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <FadeInOnScroll>
+    <section aria-label="核心指标" class="mt-[var(--space-ma-2)] grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard label="设备总数" :value="String(equipmentCount)" :delta="`在用 ${inUseCount}`" deltaTone="flat" />
     <StatCard
       label="校准过期"
@@ -123,10 +130,12 @@ function openLog(log: LogEntry) {
       :value="String(openLoanCount)"
       :delta="overdueCount ? `其中 ${overdueCount} 台逾期` : '无逾期'"
       :deltaTone="overdueCount ? 'down' : 'flat'"
-    />
-  </section>
+      />
+    </section>
+  </FadeInOnScroll>
 
-  <div class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
+  <FadeInOnScroll :delay="80">
+  <div class="mt-[var(--space-ma-3)] grid grid-cols-1 gap-4 xl:grid-cols-3">
     <!-- 使用趋势 -->
     <section class="panel p-4 xl:col-span-2" aria-labelledby="trend-title">
       <div class="mb-3 flex items-center justify-between gap-2">
@@ -171,9 +180,11 @@ function openLog(log: LogEntry) {
       </ul>
     </section>
   </div>
+  </FadeInOnScroll>
 
   <!-- 最近任务 -->
-  <section class="panel mt-6" aria-labelledby="tasks-title">
+  <FadeInOnScroll :delay="120">
+  <section class="panel mt-[var(--space-ma-3)]" aria-labelledby="tasks-title">
     <div class="flex items-center justify-between border-b border-line px-4 py-3">
       <h2 id="tasks-title" class="text-[15px] font-semibold text-ink">最近任务</h2>
       <RouterLink to="/logs" class="text-[13px] text-brand hover:underline">查看全部日志</RouterLink>
@@ -210,5 +221,17 @@ function openLog(log: LogEntry) {
       </table>
     </div>
   </section>
+  </FadeInOnScroll>
+
+  <PageSection :ma="3">
+    <InkDivider tone="light" class="mb-8" />
+    <div class="flex justify-end">
+      <QuoteBlock
+        vertical
+        text="先有记录，再有判断；没有依据的结论，一律不作数。"
+        source="实验室智能管理agent · 设计原则"
+      />
+    </div>
+  </PageSection>
 
 </template>

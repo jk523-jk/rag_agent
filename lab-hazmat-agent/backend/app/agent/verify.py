@@ -145,12 +145,22 @@ def _fix_ranges(reply: str, evidence: str, issues: list[Issue]) -> tuple[str, bo
     return reply, changed
 
 
-def _fix_asof(reply: str, evidence: str, issues: list[Issue]) -> tuple[str, bool]:
-    """「数据截至 X」里的日期若与证据不符，换成证据里的那个日期。"""
+def _fix_asof(reply: str, evidence: str, issues: list[Issue], now_text: str = "") -> tuple[str, bool]:
+    """「数据截至 X」里的日期若与证据不符，换成证据里的那个日期。
+
+    证据里没有「数据截至」时（例如设备清单只回有效期），以**服务器当天**为准：
+    这类回答的时间锚点本来就是"查询时刻"，模型常把它写成上一年（实测 2024-10-18）。
+    """
     ev_asof = ASOF_RE.findall(evidence)
-    if not ev_asof:
-        return reply, False
-    truth = ev_asof[0]
+    if ev_asof:
+        truth = ev_asof[0]
+        source = "evidence"
+    else:
+        m = DATE_RE.search(now_text or "")
+        if not m:
+            return reply, False
+        truth = m.group(0)
+        source = "server_date"
     changed = False
 
     def repl(m: re.Match) -> str:
@@ -159,7 +169,8 @@ def _fix_asof(reply: str, evidence: str, issues: list[Issue]) -> tuple[str, bool
         if claim == truth:
             return m.group(0)
         changed = True
-        issues.append(Issue("asof_fixed", claim, truth, fixed=True))
+        issues.append(Issue("asof_fixed" if source == "evidence" else "asof_to_today",
+                            claim, truth, fixed=True))
         return m.group(0).replace(claim, truth)
 
     return ASOF_RE.sub(repl, reply), changed
@@ -224,7 +235,7 @@ def verify_reply(
             return VerifyResult(ok=False, reply=SAFE_REPLY, issues=issues, severity="high")
 
     # —— B/C 档：日期与区间 ——
-    text, asof_fixed = _fix_asof(text, evidence, issues)
+    text, asof_fixed = _fix_asof(text, evidence, issues, now_text)
     text, range_fixed = _fix_ranges(text, evidence, issues)
     unverified_dates = _check_dates(text, evidence, issues)
 

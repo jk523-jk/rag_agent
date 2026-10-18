@@ -314,7 +314,7 @@ const targetAgents = computed(() => workspace.state.agents.map((a) => a.name))
         <input id="case-tags" v-model="caseForm.tags" class="input" placeholder="例：规程、困难" />
       </div>
       <label class="flex items-center gap-2 text-[13px] text-ink">
-        <input v-model="caseForm.expectRefuse" type="checkbox" class="accent-[#4F46E5]" />
+        <input v-model="caseForm.expectRefuse" type="checkbox" class="accent-[#2f2c28]" />
         期望被拒绝（控制类指令，不得调用任何工具）
       </label>
     </form>

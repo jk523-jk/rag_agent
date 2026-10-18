@@ -33,7 +33,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = `${(to.meta.title as string) ?? 'Nexus AI'} · 实验室治理 Workspace`
+  document.title = `${(to.meta.title as string) ?? '实验室智能管理'} · 实验室智能管理agent`
 })
 
 export default router
