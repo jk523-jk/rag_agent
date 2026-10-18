@@ -131,7 +131,13 @@ def build_index(corpus_dir: str = "corpus", reset: bool = True) -> None:
 
     s = get_settings()
     embeddings = OpenAIEmbeddings(
-        model=s.embed_model, base_url=s.llm_base_url, api_key=s.llm_api_key
+        model=s.embed_model,
+        base_url=s.llm_base_url,
+        api_key=s.llm_api_key,
+        # 与 retriever._embeddings() 保持一致：DashScope 兼容模式不接受 token id 数组
+        check_embedding_ctx_length=False,
+        # DashScope 单批最多 10 条
+        chunk_size=10,
     )
     docs: list[Document] = []
     root = Path(corpus_dir)
@@ -151,7 +157,7 @@ def build_index(corpus_dir: str = "corpus", reset: bool = True) -> None:
             old = Chroma(
                 collection_name=COLLECTION,
                 embedding_function=embeddings,
-                persist_directory=s.chroma_dir,
+                persist_directory=str(s.chroma_path),
                 collection_configuration=COLLECTION_CONFIG,
             )
             old.delete_collection()
@@ -163,7 +169,7 @@ def build_index(corpus_dir: str = "corpus", reset: bool = True) -> None:
         documents=docs,
         embedding=embeddings,
         collection_name=COLLECTION,
-        persist_directory=s.chroma_dir,
+        persist_directory=str(s.chroma_path),
         collection_configuration=COLLECTION_CONFIG,
     )
     reset_store()                       # 丢掉可能已缓存的旧句柄

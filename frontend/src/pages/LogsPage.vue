@@ -28,7 +28,7 @@ const pageSize = 10
 const detail = ref<LogEntry | null>(null)
 
 const TYPE_LABEL: Record<LogEntry['taskType'], string> = {
-  chat: '对话', access: '出入核查', equipment: '设备', workflow: '工作流', evaluation: '评估',
+  chat: '对话', access: '出入核查', equipment: '设备', evaluation: '评估',
 }
 
 const filtered = computed(() => {

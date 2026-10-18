@@ -1,6 +1,6 @@
 // 演示数据：全部为虚构，仅用于前端演示。页面上必须标注 DEMO / 模拟。
 // 实验室领域数据（人员/资质/授权/门禁/台账/设备）见 ./labData.ts。
-import type { Agent, EvalCase, EvalTask, LogEntry, Workflow } from '@/types'
+import type { Agent, EvalCase, EvalTask, LogEntry } from '@/types'
 
 export const DEMO_NOW = '2026-10-15 10:00'
 
@@ -37,51 +37,6 @@ export const agents: Agent[] = [
     tools: ['query_equipment', 'check_equipment_loan', 'list_calibration_due'],
     status: 'enabled', lastRunAt: '2026-10-15 08:50', runCount: 132,
   },
-  {
-    id: 'agt-planner', name: '工作流规划助手', icon: 'workflow',
-    description: '把“准入判定 → 台账核查 → 设备校准 → 上报”串成可复用的审核流程（模拟编排）。',
-    model: 'qwen-max', temperature: 0.2, maxTokens: 4096,
-    systemPrompt: '根据用户目标规划节点顺序，只输出流程草案。',
-    tools: ['search_policy'], status: 'disabled', lastRunAt: '—', runCount: 0,
-  },
-]
-
-export const workflows: Workflow[] = [
-  {
-    id: 'wf-access', name: '准入复核流程', description: '逐人校验三闸，资质过期或无授权直接结束并输出处置依据。',
-    status: 'published', createdAt: '2026-10-10 14:20', lastRunAt: '2026-10-15 09:40',
-    nodes: [
-      { id: 'n-start', type: 'start', label: '输入：人员 + 实验室 + 时间', x: 40, y: 140, config: {} },
-      { id: 'n-ret', type: 'retriever', label: '检索规程条款', x: 280, y: 140, config: { 知识库: '安全规程与管理制度', topK: '4' } },
-      { id: 'n-tool', type: 'tool', label: 'check_lab_access', x: 520, y: 140, config: { 工具: 'check_lab_access', 只读: '是' } },
-      { id: 'n-cond', type: 'condition', label: '三闸全部通过？', x: 760, y: 140, config: { 判断: '结论 == 准予进入' } },
-      { id: 'n-llm', type: 'llm', label: '生成复核说明', x: 1000, y: 60, config: { 模型: 'qwen-plus', temperature: '0' } },
-      { id: 'n-out', type: 'output', label: '输出结论与依据', x: 1240, y: 140, config: { 格式: 'Markdown' } },
-    ],
-    edges: [
-      { id: 'e1', source: 'n-start', target: 'n-ret' },
-      { id: 'e2', source: 'n-ret', target: 'n-tool' },
-      { id: 'e3', source: 'n-tool', target: 'n-cond' },
-      { id: 'e4', source: 'n-cond', target: 'n-llm', label: '是' },
-      { id: 'e5', source: 'n-cond', target: 'n-out', label: '否' },
-      { id: 'e6', source: 'n-llm', target: 'n-out' },
-    ],
-  },
-  {
-    id: 'wf-equip', name: '设备校准提醒流程', description: '每周一核查校准到期清单，输出需送检设备与保管人，逾期未还的设备一并催还。',
-    status: 'draft', createdAt: '2026-10-14 10:05', lastRunAt: null,
-    nodes: [
-      { id: 'n-start', type: 'start', label: '输入：预警天数（默认 30）', x: 40, y: 140, config: {} },
-      { id: 'n-cal', type: 'tool', label: 'list_calibration_due', x: 280, y: 140, config: { 工具: 'list_calibration_due', 只读: '是' } },
-      { id: 'n-loan', type: 'tool', label: 'check_equipment_loan', x: 520, y: 140, config: { 工具: 'check_equipment_loan', 只读: '是' } },
-      { id: 'n-out', type: 'output', label: '输出送检与催还清单', x: 760, y: 140, config: { 格式: 'Markdown' } },
-    ],
-    edges: [
-      { id: 'e1', source: 'n-start', target: 'n-cal' },
-      { id: 'e2', source: 'n-cal', target: 'n-loan' },
-      { id: 'e3', source: 'n-loan', target: 'n-out' },
-    ],
-  },
 ]
 
 export const logs: LogEntry[] = [
@@ -107,15 +62,6 @@ export const logs: LogEntry[] = [
     steps: [
       { nodeId: 's1', label: 'list_calibration_due', status: 'success', durationMs: 520, input: '预警天数 30', output: '2 台需处理：EQ-0002 已过期、EQ-0007 将到期' },
       { nodeId: 's2', label: 'check_equipment_loan', status: 'success', durationMs: 610, input: 'EQ-0007', output: '借出未还，已逾期 3 天' },
-    ],
-  },
-  {
-    id: 'task-51b9e4', taskType: 'workflow', target: '准入复核流程', startedAt: '2026-10-14 16:58:40', durationMs: 7310,
-    status: 'failed', tokens: 1204, isMock: true,
-    error: 'TimeoutError：Tool 节点 check_lab_access 超过 5000ms（模拟故障）',
-    steps: [
-      { nodeId: 'n-ret', label: '检索规程条款', status: 'success', durationMs: 640, input: 'topK=4', output: '4 条命中' },
-      { nodeId: 'n-tool', label: 'check_lab_access', status: 'failed', durationMs: 5000, input: 'person=示例人员A, lab=LAB-3', output: '', error: 'TimeoutError（模拟）' },
     ],
   },
   {

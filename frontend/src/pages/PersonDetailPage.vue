@@ -6,7 +6,7 @@ import PageHeader from '@/components/common/PageHeader.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { DEMO_TODAY } from '@/mocks/labData'
+import { todayIso } from '@/utils/clock'
 import type { AuthResult, AuthStatus, CertStatus, Status } from '@/types'
 
 const route = useRoute()
@@ -33,7 +33,7 @@ const events = computed(() => (person.value ? workspace.accessEventsOf(person.va
 
 /** 资质是否有效：以有效期为准，不看 status（二者可能不一致） */
 function qualEffective(expireDate: string): boolean {
-  return expireDate >= DEMO_TODAY
+  return expireDate >= todayIso
 }
 
 /** 资质闸只看安全考试合格证，取有效期最新一条 */
@@ -175,7 +175,7 @@ function labName(labId: string) {
                 <span class="text-[12px] text-ink-3">{{ labName(a.labId) }}</span>
               </td>
               <td class="px-4 py-2.5 tabular-nums text-ink-2">{{ a.authFrom }}</td>
-              <td class="px-4 py-2.5 tabular-nums" :class="a.authTo >= DEMO_TODAY ? 'text-ink-2' : 'text-err'">{{ a.authTo }}</td>
+              <td class="px-4 py-2.5 tabular-nums" :class="a.authTo >= todayIso ? 'text-ink-2' : 'text-err'">{{ a.authTo }}</td>
               <td class="px-4 py-2.5 text-ink-2">{{ a.grantor }}</td>
               <td class="px-4 py-2.5"><StatusBadge :status="AUTH_TONE[a.status]" :label="a.status" /></td>
               <td class="px-4 py-2.5 text-ink-2">

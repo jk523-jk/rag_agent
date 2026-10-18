@@ -39,21 +39,21 @@ describe('streamChatFromBackend', () => {
       sseResponse(['data: {"delta":"你', '好"}\n\ndata: {"delta":"！"}\n\n', 'data: [DONE]\n\n']),
     ))
     const received: string[] = []
-    await streamChatFromBackend('q', 'thread-1', (d) => received.push(d), new AbortController().signal)
+    await streamChatFromBackend('q', 'thread-1', 'agt-access', (d) => received.push(d), new AbortController().signal)
     expect(received.join('')).toBe('你好！')
   })
 
   it('后端返回 error 事件时抛出可读错误', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => sseResponse(['data: {"error":"处理失败，请稍后重试"}\n\n'])))
     await expect(
-      streamChatFromBackend('q', 'thread-1', () => {}, new AbortController().signal),
+      streamChatFromBackend('q', 'thread-1', 'agt-access', () => {}, new AbortController().signal),
     ).rejects.toThrow('处理失败，请稍后重试')
   })
 
   it('HTTP 错误状态直接失败', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })))
     await expect(
-      streamChatFromBackend('q', 'thread-1', () => {}, new AbortController().signal),
+      streamChatFromBackend('q', 'thread-1', 'agt-access', () => {}, new AbortController().signal),
     ).rejects.toThrow('HTTP 500')
   })
 })

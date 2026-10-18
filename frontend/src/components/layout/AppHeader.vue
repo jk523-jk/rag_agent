@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Menu, Search, CircleHelp, Plus, ChevronRight, Bot, Microscope, Users, Workflow as WorkflowIcon } from 'lucide-vue-next'
+import { Menu, Search, CircleHelp, Plus, ChevronRight, Bot, Microscope, Users } from 'lucide-vue-next'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 const emit = defineEmits<{ (e: 'open-mobile'): void }>()
@@ -23,7 +23,7 @@ const crumbs = computed(() => {
   return list
 })
 
-// 全局搜索：覆盖 Agent、工作流、设备与人员名称，点击结果跳转
+// 全局搜索：覆盖 Agent、设备与人员名称，点击结果跳转
 const keyword = ref('')
 const open = ref(false)
 const results = computed(() => {
@@ -32,9 +32,6 @@ const results = computed(() => {
   const hits: { key: string; label: string; sub: string; to: string; kind: string }[] = []
   for (const a of workspace.state.agents) {
     if (a.name.toLowerCase().includes(q)) hits.push({ key: a.id, label: a.name, sub: 'Agent', to: `/agents/${a.id}`, kind: 'agent' })
-  }
-  for (const w of workspace.state.workflows) {
-    if (w.name.toLowerCase().includes(q)) hits.push({ key: w.id, label: w.name, sub: '工作流', to: `/workflows/${w.id}`, kind: 'wf' })
   }
   for (const e of workspace.state.equipment) {
     if (e.equipName.toLowerCase().includes(q) || e.equipId.toLowerCase().includes(q)) {
@@ -64,7 +61,6 @@ watch(() => route.path, () => { open.value = false })
 
 const quickAction = computed(() => {
   if (route.path.startsWith('/equipment')) return { label: '新增设备', to: '/equipment?create=1' }
-  if (route.path.startsWith('/workflows')) return { label: '新建工作流', to: '/workflows?create=1' }
   return { label: '新建 Agent', to: '/agents?create=1' }
 })
 </script>
@@ -123,7 +119,7 @@ const quickAction = computed(() => {
             <Bot v-if="r.kind === 'agent'" class="size-4 text-ink-3" aria-hidden="true" />
             <Microscope v-else-if="r.kind === 'equip'" class="size-4 text-ink-3" aria-hidden="true" />
             <Users v-else-if="r.kind === 'person'" class="size-4 text-ink-3" aria-hidden="true" />
-            <WorkflowIcon v-else class="size-4 text-ink-3" aria-hidden="true" />
+            <Bot v-else class="size-4 text-ink-3" aria-hidden="true" />
             <span class="truncate text-[13px] text-ink">{{ r.label }}</span>
             <span class="ml-auto text-[12px] text-ink-3">{{ r.sub }}</span>
           </button>

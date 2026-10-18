@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     # 建表脚本位置（NL2SQL 的 DDL 上下文来源）。留空则自动按候选路径查找。
     mysql_ddl_path: str = ""
 
+    # ---- Agent 配置存储 ----
+    # 配置走文件而非数据库：MySQL 账号是只读的，不为几条配置引入写权限。
+    # 留空则用 <项目根>/data/agents.json。
+    agents_store_path: str = ""
+
     # ---- 向量库 ----
     chroma_dir: str = "/data/chroma"
 
@@ -90,6 +95,26 @@ class Settings(BaseSettings):
     def mysql_endpoint(self) -> str:
         """日志用的端点描述，不含口令。"""
         return f"{self.mysql_host}:{self.mysql_port}/{self.mysql_db}"
+
+    @property
+    def chroma_path(self) -> Path:
+        """向量库的绝对路径。
+
+        相对路径按**项目根**（lab-hazmat-agent/）解析，而不是按当前工作目录。
+        原实现直接用 s.chroma_dir，于是「必须在 lab-hazmat-agent/ 下启动」成了
+        隐式约束：从仓库根或其他目录启动时，会静默连到一个空的新向量库，
+        表现为「知识库检索永远为空」而没有任何报错。现在无论从哪里启动都指向
+        同一份索引；绝对路径仍然原样使用（容器挂载场景不受影响）。
+        """
+        path = Path(self.chroma_dir).expanduser()
+        return path if path.is_absolute() else (_PROJECT_ROOT / path).resolve()
+
+    @property
+    def agents_path(self) -> Path:
+        """Agent 配置文件的绝对路径。相对路径同样按项目根解析。"""
+        raw = (self.agents_store_path or "data/agents.json").strip()
+        path = Path(raw).expanduser()
+        return path if path.is_absolute() else (_PROJECT_ROOT / path).resolve()
 
     def _ddl_dirs(self) -> list[Path]:
         """建表脚本候选目录：本机仓库布局、容器挂载路径、相对 CWD。"""

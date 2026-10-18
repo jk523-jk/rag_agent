@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { LayoutGrid, Table2, Plus, Copy, Power, PowerOff, Trash2, Pencil, MoreHorizontal, Bot, BookOpen, FlaskConical, Workflow } from 'lucide-vue-next'
+import { LayoutGrid, Table2, Plus, Copy, Power, PowerOff, Trash2, Pencil, MoreHorizontal, Bot, BookOpen, FlaskConical } from 'lucide-vue-next'
 import PageHeader from '@/components/common/PageHeader.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
@@ -29,9 +29,9 @@ const confirmDelete = ref<Agent | null>(null)
 const menuId = ref<string | null>(null)
 
 const TYPE_LABEL: Record<Agent['icon'], string> = {
-  shield: '准入', book: '规程', flask: '台账', workflow: '编排',
+  shield: '准入', book: '规程', flask: '台账',
 }
-const TYPE_ICON = { shield: Bot, book: BookOpen, flask: FlaskConical, workflow: Workflow }
+const TYPE_ICON = { shield: Bot, book: BookOpen, flask: FlaskConical }
 
 const rows = computed(() => {
   const q = keyword.value.trim().toLowerCase()
@@ -71,26 +71,38 @@ watch(() => route.query.create, (v) => {
   }
 }, { immediate: true })
 
-function duplicate(a: Agent) {
+async function duplicate(a: Agent) {
   menuId.value = null
   const copy: Agent = { ...plainClone(a), id: newId('agt'), name: `${a.name}（副本）`, status: 'disabled', runCount: 0, lastRunAt: '—' }
-  workspace.upsertAgent(copy)
-  ui.toast(`已复制为「${copy.name}」，默认停用`)
+  try {
+    await workspace.saveAgent(copy, true)
+    ui.toast(`已复制为「${copy.name}」，默认停用`)
+  } catch (e) {
+    ui.toast(e instanceof Error ? e.message : '复制失败', 'error')
+  }
 }
 
-function toggleStatus(a: Agent) {
+async function toggleStatus(a: Agent) {
   menuId.value = null
-  const next = a.status === 'enabled' ? 'disabled' : 'enabled'
-  workspace.upsertAgent({ ...a, status: next })
-  ui.toast(next === 'enabled' ? `已启用「${a.name}」` : `已停用「${a.name}」`)
+  try {
+    const next = await workspace.toggleAgent(a.id)
+    if (next) ui.toast(next.status === 'enabled' ? `已启用「${a.name}」` : `已停用「${a.name}」`)
+  } catch (e) {
+    ui.toast(e instanceof Error ? e.message : '操作失败', 'error')
+  }
 }
 
-function doDelete() {
+async function doDelete() {
   if (!confirmDelete.value) return
   const name = confirmDelete.value.name
-  workspace.removeAgent(confirmDelete.value.id)
+  const id = confirmDelete.value.id
   confirmDelete.value = null
-  ui.toast(`已删除「${name}」`)
+  try {
+    await workspace.deleteAgentById(id)
+    ui.toast(`已删除「${name}」`)
+  } catch (e) {
+    ui.toast(e instanceof Error ? e.message : '删除失败', 'error')
+  }
 }
 </script>
 

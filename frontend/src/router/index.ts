@@ -9,8 +9,6 @@ const router = createRouter({
     { path: '/chat', name: 'chat', component: () => import('@/pages/ChatPage.vue'), meta: { title: 'AI 对话', group: '工作空间' } },
     { path: '/agents', name: 'agents', component: () => import('@/pages/AgentsPage.vue'), meta: { title: 'Agent 管理', group: 'AI 应用' } },
     { path: '/agents/:id', name: 'agent-detail', component: () => import('@/pages/AgentDetailPage.vue'), meta: { title: 'Agent 详情', group: 'AI 应用', parent: '/agents' } },
-    { path: '/workflows', name: 'workflows', component: () => import('@/pages/WorkflowsPage.vue'), meta: { title: '工作流', group: 'AI 应用' } },
-    { path: '/workflows/:id', name: 'workflow-editor', component: () => import('@/pages/WorkflowEditorPage.vue'), meta: { title: '工作流编辑器', group: 'AI 应用', parent: '/workflows' } },
     // 实验室管理：由原「知识与检索」分组重构而来
     { path: '/reagents', name: 'reagents', component: () => import('@/pages/ReagentsPage.vue'), meta: { title: '药剂管理', group: '实验室管理' } },
     { path: '/equipment', name: 'equipment', component: () => import('@/pages/EquipmentPage.vue'), meta: { title: '设备管理', group: '实验室管理' } },
@@ -22,6 +20,9 @@ const router = createRouter({
     { path: '/logs', name: 'logs', component: () => import('@/pages/LogsPage.vue'), meta: { title: '运行日志', group: '系统观测' } },
     { path: '/evaluations', name: 'evaluations', component: () => import('@/pages/EvaluationsPage.vue'), meta: { title: '评估中心', group: '系统观测' } },
     { path: '/settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: '系统设置', group: '设置' } },
+    // 工作流编排已于 v2.0 下线（未落地执行引擎），旧链接重定向到 Agent 管理
+    { path: '/workflows', redirect: '/agents' },
+    { path: '/workflows/:id', redirect: '/agents' },
     // 旧书签重定向：原知识库 / 检索实验室已并入实验室管理
     { path: '/knowledge', redirect: '/reagents' },
     { path: '/knowledge/:id', redirect: '/reagents' },

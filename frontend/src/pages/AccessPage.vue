@@ -9,7 +9,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { DEMO_TODAY } from '@/mocks/labData'
+import { todayIso } from '@/utils/clock'
 import type { AuthResult, AuthType, Direction, LoanStatus, Status } from '@/types'
 
 const workspace = useWorkspaceStore()
@@ -122,7 +122,7 @@ const loanRows = computed<LoanRow[]>(() =>
 )
 
 function isOverdue(r: LoanRow): boolean {
-  return r.returnTime === null && r.dueTime < `${DEMO_TODAY} 23:59`
+  return r.returnTime === null && r.dueTime < `${todayIso} 23:59`
 }
 
 const filteredLoans = computed(() => {

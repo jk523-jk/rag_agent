@@ -41,7 +41,7 @@ function toggle(key: 'tools', value: string) {
   else list.push(value)
 }
 
-function submit() {
+async function submit() {
   errors.value = validateAgent(form)
   if (Object.keys(errors.value).length) {
     ui.toast('请修正表单中标红的字段', 'error')
@@ -62,11 +62,17 @@ function submit() {
     lastRunAt: props.agent?.lastRunAt ?? '—',
     runCount: props.agent?.runCount ?? 0,
   }
-  workspace.upsertAgent(agent)
-  submitting.value = false
-  emit('saved', agent)
-  emit('update:open', false)
-  ui.toast(props.agent ? 'Agent 已更新' : 'Agent 已创建')
+  try {
+    // backend 模式写穿到 /api/agents；失败时不改本地，避免"界面成功、后端没存"
+    const saved = await workspace.saveAgent(agent, !props.agent)
+    emit('saved', saved)
+    emit('update:open', false)
+    ui.toast(props.agent ? 'Agent 已更新' : 'Agent 已创建')
+  } catch (e) {
+    ui.toast(e instanceof Error ? e.message : '保存失败，请稍后重试', 'error')
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 

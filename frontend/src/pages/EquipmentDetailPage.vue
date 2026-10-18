@@ -9,7 +9,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EquipmentForm from '@/components/forms/EquipmentForm.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useUiStore } from '@/stores/ui'
-import { DEMO_TODAY } from '@/mocks/labData'
+import { todayIso } from '@/utils/clock'
 import type { EquipStatus, LoanStatus, Status } from '@/types'
 
 const route = useRoute()
@@ -34,7 +34,7 @@ function calibrateDaysLeft(): number | null {
   const e = equipment.value
   if (!e?.calibrateDue) return null
   const due = Date.parse(`${e.calibrateDue}T00:00:00`)
-  const today = Date.parse(`${DEMO_TODAY}T00:00:00`)
+  const today = Date.parse(`${todayIso}T00:00:00`)
   return Math.round((due - today) / 86400000)
 }
 
@@ -64,7 +64,7 @@ function personLabel(id: string | null) {
 const currentLoan = computed(() => (equipment.value ? workspace.currentLoan(equipment.value.equipId) : null))
 
 function isLoanOverdue(loan: { dueTime: string; returnTime: string | null }): boolean {
-  return loan.returnTime === null && loan.dueTime < `${DEMO_TODAY} 23:59`
+  return loan.returnTime === null && loan.dueTime < `${todayIso} 23:59`
 }
 
 const hasOpenLoan = computed(() => loans.value.some((l) => l.returnTime === null))

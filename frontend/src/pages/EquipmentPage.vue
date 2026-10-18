@@ -12,7 +12,7 @@ import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import EquipmentForm from '@/components/forms/EquipmentForm.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useUiStore } from '@/stores/ui'
-import { DEMO_TODAY } from '@/mocks/labData'
+import { todayIso } from '@/utils/clock'
 import type { Equipment, EquipCategory, EquipStatus, Status } from '@/types'
 
 const workspace = useWorkspaceStore()
@@ -42,7 +42,7 @@ const STATUS_TONE: Record<EquipStatus, Status> = {
 function calibrateDaysLeft(e: Equipment): number | null {
   if (!e.calibrateDue) return null
   const due = Date.parse(`${e.calibrateDue}T00:00:00`)
-  const today = Date.parse(`${DEMO_TODAY}T00:00:00`)
+  const today = Date.parse(`${todayIso}T00:00:00`)
   return Math.round((due - today) / 86400000)
 }
 
@@ -81,7 +81,7 @@ function holderText(e: Equipment): string {
 function isLoanOverdue(e: Equipment): boolean {
   const loan = holder(e)
   if (!loan) return false
-  return loan.dueTime < `${DEMO_TODAY} 23:59`
+  return loan.dueTime < `${todayIso} 23:59`
 }
 
 function keeperText(e: Equipment): string {

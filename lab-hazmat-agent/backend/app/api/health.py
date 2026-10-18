@@ -41,7 +41,7 @@ async def health_detail() -> dict:
         },
         "llm": {"model": s.llm_model, "embed_model": s.embed_model,
                 "api_key_set": bool(s.llm_api_key)},
-        "chroma_dir": s.chroma_dir,
+        "chroma_dir": str(s.chroma_path),
         "ddl_found": ddl_available(),
         "active_sessions": active_session_count(),
     }

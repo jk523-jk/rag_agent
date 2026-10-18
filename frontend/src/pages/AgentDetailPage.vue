@@ -11,6 +11,8 @@ import AgentForm from '@/components/forms/AgentForm.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useUiStore } from '@/stores/ui'
 import { copyText } from '@/utils/format'
+import { USE_BACKEND } from '@/utils/clock'
+import { streamChatFromBackend } from '@/services/chatApi'
 import { answerFor } from '@/services/chatEngine'
 
 const route = useRoute()
@@ -31,21 +33,46 @@ const agent = computed(() => workspace.findAgent(String(route.params.id)))
 const formOpen = ref(false)
 const confirmDelete = ref(false)
 
-// 测试运行：直接跑模拟回答引擎，明确标注是模拟结果
+// 测试运行：backend 模式是**真实调用**该 Agent（会查库、会花 token）；mock 模式走本地剧本
 const testInput = ref('')
 const testOutput = ref('')
+const testElapsed = ref<number | null>(null)
 const testing = ref(false)
+let controller: AbortController | null = null
 
 const runs = computed(() => workspace.state.logs.filter((l) => l.target === agent.value?.name).slice(0, 5))
 
-function runTest() {
+async function runTest() {
   const q = testInput.value.trim()
-  if (!q) return
+  if (!q || !agent.value) return
   testing.value = true
-  window.setTimeout(() => {
-    testOutput.value = answerFor(q).text
+  testOutput.value = ''
+  testElapsed.value = null
+
+  if (!USE_BACKEND) {
+    window.setTimeout(() => {
+      testOutput.value = answerFor(q).text
+      testing.value = false
+    }, 700)
+    return
+  }
+
+  const started = performance.now()
+  controller = new AbortController()
+  try {
+    await streamChatFromBackend(
+      q,
+      `test-${agent.value.id}-${Date.now()}`,
+      agent.value.id,
+      (delta) => { testOutput.value += delta },
+      controller.signal,
+    )
+    testElapsed.value = Math.round(performance.now() - started)
+  } catch (e) {
+    testOutput.value = `调用失败：${e instanceof Error ? e.message : String(e)}`
+  } finally {
     testing.value = false
-  }, 700)
+  }
 }
 
 async function copyId() {
@@ -53,13 +80,18 @@ async function copyId() {
   ui.toast(ok ? '已复制 Agent ID' : '复制失败', ok ? 'success' : 'error')
 }
 
-function doDelete() {
+async function doDelete() {
   if (!agent.value) return
   const name = agent.value.name
-  workspace.removeAgent(agent.value.id)
+  const id = agent.value.id
   confirmDelete.value = false
-  ui.toast(`已删除「${name}」`)
-  router.push('/agents')
+  try {
+    await workspace.deleteAgentById(id)
+    ui.toast(`已删除「${name}」`)
+    router.push('/agents')
+  } catch (e) {
+    ui.toast(e instanceof Error ? e.message : '删除失败', 'error')
+  }
 }
 </script>
 
@@ -127,7 +159,9 @@ function doDelete() {
       <!-- 测试运行 -->
       <section class="panel p-4" aria-labelledby="test-title">
         <h2 id="test-title" class="mb-1 text-[15px] font-semibold text-ink">测试运行</h2>
-        <p class="mb-3 text-[12px] text-ink-3">模拟运行，不会调用真实模型。</p>
+        <p class="mb-3 text-[12px] text-ink-3">
+          {{ USE_BACKEND ? '真实调用该 Agent（会查库、消耗 token）。' : '模拟运行，不会调用真实模型。' }}
+        </p>
         <form @submit.prevent="runTest">
           <label class="sr-only" for="test-input">测试问题</label>
           <textarea id="test-input" v-model="testInput" rows="2" class="textarea" placeholder="例：王某现在能不能进 LAB-3？" />
@@ -136,7 +170,10 @@ function doDelete() {
           </button>
         </form>
         <div v-if="testOutput" class="mt-3">
-          <p class="label">输出（模拟）</p>
+          <p class="label">
+            输出{{ USE_BACKEND ? '' : '（模拟）' }}
+            <span v-if="testElapsed !== null" class="ml-1 text-ink-3">· 耗时 {{ testElapsed }}ms</span>
+          </p>
           <pre class="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-[var(--radius-control)] border border-line bg-page p-3 text-[12px] leading-relaxed text-ink">{{ testOutput }}</pre>
         </div>
       </section>

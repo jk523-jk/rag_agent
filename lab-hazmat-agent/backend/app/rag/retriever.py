@@ -26,7 +26,15 @@ COLLECTION_CONFIG = {"hnsw": {"space": "cosine"}}
 def _embeddings() -> OpenAIEmbeddings:
     s = get_settings()
     return OpenAIEmbeddings(
-        model=s.embed_model, base_url=s.llm_base_url, api_key=s.llm_api_key
+        model=s.embed_model,
+        base_url=s.llm_base_url,
+        api_key=s.llm_api_key,
+        # DashScope 兼容模式只接受原始字符串，不接受 token id 数组。
+        # langchain_openai 默认会先 tiktoken 分词再发送（为了绕开 OpenAI 的 token 上限），
+        # 在 DashScope 上会报 400 InvalidParameter: contents is neither str nor list of str。
+        check_embedding_ctx_length=False,
+        # DashScope text-embedding-v3 单次请求上限 10 条，langchain 默认 chunk_size=1000。
+        chunk_size=10,
     )
 
 
@@ -36,7 +44,7 @@ def _store() -> Chroma:
     return Chroma(
         collection_name=COLLECTION,
         embedding_function=_embeddings(),
-        persist_directory=s.chroma_dir,
+        persist_directory=str(s.chroma_path),
         collection_configuration=COLLECTION_CONFIG,
     )
 

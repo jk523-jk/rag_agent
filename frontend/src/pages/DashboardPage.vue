@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { todayIso } from '@/utils/clock'
 import { computed, defineAsyncComponent, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -22,7 +23,7 @@ const recentTasks = computed(() => workspace.state.logs.slice(0, 5))
 
 // ---------------- 实验室指标（对齐后端判定口径）----------------
 
-const DEMO_TODAY = '2026-10-15'
+
 /** 资质闸唯一认可的证书类型 */
 const CERT_GATE_TYPE = '安全考试合格证'
 
@@ -31,7 +32,7 @@ const inUseCount = computed(() => workspace.state.equipment.filter((e) => e.stat
 
 /** 校准是否过期：以有效期为准，不看状态字段 */
 const calibExpiredCount = computed(
-  () => workspace.state.equipment.filter((e) => !!e.calibrateDue && e.calibrateDue < DEMO_TODAY).length,
+  () => workspace.state.equipment.filter((e) => !!e.calibrateDue && e.calibrateDue < todayIso).length,
 )
 
 /** 资质异常人数：安全考试合格证已过期或未登记 */
@@ -43,7 +44,7 @@ const certExpiredCount = computed(
         .filter((q) => q.certType === CERT_GATE_TYPE)
       if (!matched.length) return true
       const latest = matched.reduce((a, b) => (b.expireDate > a.expireDate ? b : a))
-      return latest.expireDate < DEMO_TODAY
+      return latest.expireDate < todayIso
     }).length,
 )
 
@@ -54,7 +55,7 @@ const openLoanCount = computed(
 const overdueCount = computed(
   () =>
     workspace.state.equipmentLoans.filter(
-      (l) => l.returnTime === null && l.dueTime < `${DEMO_TODAY} 23:59`,
+      (l) => l.returnTime === null && l.dueTime < `${todayIso} 23:59`,
     ).length,
 )
 
@@ -63,7 +64,6 @@ const activities = [
   { text: '设备 EQ-0002 气相色谱质谱联用仪校准已过期 20 天', at: '2026-10-15 08:50', to: '/equipment' },
   { text: 'Agent「准入判定助手」完成一次三闸判定', at: '2026-10-15 09:42', to: '/logs' },
   { text: '赵某借用便携式气体检测仪逾期未还（应还 10-12）', at: '2026-10-15 08:00', to: '/access' },
-  { text: '工作流「准入复核流程」运行失败（模拟超时）', at: '2026-10-14 16:58', to: '/workflows/wf-access' },
 ]
 
 function taskTarget(log: LogEntry) {
@@ -84,8 +84,23 @@ function openLog(log: LogEntry) {
     </template>
   </PageHeader>
 
-  <p class="mb-4 text-[12px] text-ink-3">
-    以下为演示数据（模拟），不代表真实生产运行情况。
+  <p class="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
+    <template v-if="workspace.dataSource === 'mysql'">
+      <span class="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">实时数据库</span>
+      数据来自 lab_hazmat 库，读取于 {{ workspace.serverTime }}
+    </template>
+    <template v-else-if="workspace.dataSource === 'loading'">
+      <span class="rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-medium text-info">加载中</span>
+      正在从后端读取数据…
+    </template>
+    <template v-else-if="workspace.dataSource === 'error'">
+      <span class="rounded-full bg-err-soft px-2 py-0.5 text-[11px] font-medium text-err">连接失败</span>
+      {{ workspace.dataError }}——页面为空不代表库里没有数据
+    </template>
+    <template v-else>
+      <span class="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn">演示数据</span>
+      当前为本地模拟数据，不对应真实生产情况。
+    </template>
   </p>
 
   <!-- 核心指标 -->

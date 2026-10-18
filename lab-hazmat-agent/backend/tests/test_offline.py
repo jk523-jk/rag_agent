@@ -392,6 +392,94 @@ def test_config() -> None:
           not any("seed" in n for n in ddl_names), f"解析结果 {ddl_names}")
 
 
+# ============================ 9. Agent 配置 ============================
+
+def test_agents() -> None:
+    """Agent 落地的四条红线：白名单、安全前缀、内置保护、增删改。"""
+    g = "Agent"
+    import tempfile
+
+    from app.agent.prompts import SAFETY_PREFIX, compose_prompt
+    from app.agents.models import AgentValidationError
+    from app.agents.store import (
+        create_agent, delete_agent, get_agent, list_agents, reset_store, set_status, update_agent,
+    )
+    from app.core.config import get_settings
+    from app.tools import TOOLS, tools_for
+
+    s = get_settings()
+    original = s.agents_store_path
+    with tempfile.TemporaryDirectory() as tmp:
+        s.agents_store_path = str(Path(tmp) / "agents.json")
+        try:
+            reset_store()
+            seeded = list_agents()
+            eq(g, "首次启动写入内置 Agent", len(seeded), 4)
+            check(g, "内置 Agent 标记为 is_builtin", all(a.is_builtin for a in seeded))
+
+            # —— 白名单：服务端唯一入口 ——
+            ok = tools_for(["check_lab_access", "search_policy"])
+            eq(g, "合法白名单返回对应工具", sorted(t.name for t in ok),
+               ["check_lab_access", "search_policy"])
+            check(g, "返回顺序跟随 TOOLS 定义（可复现）",
+                  [t.name for t in ok] == [t.name for t in TOOLS if t.name in
+                                           {"check_lab_access", "search_policy"}])
+            try:
+                tools_for(["delete_records"])
+                check(g, "未知工具被拒绝", False, "未抛错")
+            except ValueError:
+                check(g, "未知工具被拒绝", True)
+            try:
+                tools_for(["check_lab_access", "delete"])
+                check(g, "写入类工具被拒绝", False, "未抛错")
+            except ValueError:
+                check(g, "写入类工具被拒绝", True)
+
+            # —— 安全前缀：用户改不掉只读约束 ——
+            composed = compose_prompt("你只负责设备校准。")
+            check(g, "安全前缀始终在最前", composed.startswith(SAFETY_PREFIX))
+            check(g, "硬规则无法被覆盖", "【硬规则，按优先级】" in composed)
+            check(g, "用户补充被标注为额外要求", "【本场景的额外要求】" in composed)
+            check(g, "空补充等价于纯前缀", compose_prompt("") == SAFETY_PREFIX)
+
+            # —— CRUD ——
+            created = create_agent({
+                "name": "测试 Agent", "tools": ["search_policy"], "system_prompt": "只答规程。",
+            })
+            check(g, "新建返回 agt- 前缀 id", created.id.startswith("agt-"))
+            eq(g, "新建后总数", len(list_agents()), 5)
+
+            try:
+                create_agent({"name": "非法", "tools": ["drop_table"]})
+                check(g, "非法工具不进存储", False, "未抛错")
+            except AgentValidationError:
+                check(g, "非法工具不进存储", True)
+
+            updated = update_agent(created.id, {
+                "name": "测试 Agent 改", "tools": ["search_policy", "query_equipment"],
+                "system_prompt": "只答规程与设备。", "status": "enabled",
+            })
+            eq(g, "更新后工具数", len(updated.tools), 2)
+            check(g, "更新后 prompt 已变", updated.system_prompt == "只答规程与设备。")
+
+            disabled = set_status(created.id, "disabled")
+            eq(g, "停用生效", disabled.status, "disabled")
+            check(g, "停用状态可读回", get_agent(created.id).status == "disabled")
+
+            try:
+                delete_agent("agt-access")
+                check(g, "内置 Agent 不可删除", False, "未抛错")
+            except PermissionError:
+                check(g, "内置 Agent 不可删除", True)
+
+            delete_agent(created.id)
+            check(g, "自定义 Agent 可删除", get_agent(created.id) is None)
+            eq(g, "删除后总数", len(list_agents()), 4)
+        finally:
+            s.agents_store_path = original
+            reset_store()
+
+
 GROUPS = {
     "guard": test_guard,
     "sql": test_sql_guard,
@@ -402,6 +490,7 @@ GROUPS = {
     "sds": test_sds_isolation,
     "equip": test_equipment_calibration,
     "config": test_config,
+    "agents": test_agents,
 }
 
 

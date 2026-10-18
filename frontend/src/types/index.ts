@@ -6,7 +6,7 @@ export interface Agent {
   id: string
   name: string
   description: string
-  icon: 'shield' | 'book' | 'flask' | 'workflow'
+  icon: 'shield' | 'book' | 'flask'
   model: string
   temperature: number
   maxTokens: number
@@ -42,33 +42,6 @@ export interface ChatSession {
   messages: ChatMessage[]
 }
 
-export interface WorkflowNode {
-  id: string
-  type: 'start' | 'llm' | 'retriever' | 'tool' | 'condition' | 'output'
-  label: string
-  x: number
-  y: number
-  config: Record<string, string>
-}
-
-export interface WorkflowEdge {
-  id: string
-  source: string
-  target: string
-  label?: string
-}
-
-export interface Workflow {
-  id: string
-  name: string
-  description: string
-  nodes: WorkflowNode[]
-  edges: WorkflowEdge[]
-  status: 'draft' | 'published'
-  createdAt: string
-  lastRunAt: string | null
-}
-
 export interface RunStep {
   nodeId: string
   label: string
@@ -81,7 +54,7 @@ export interface RunStep {
 
 export interface LogEntry {
   id: string
-  taskType: 'chat' | 'access' | 'equipment' | 'workflow' | 'evaluation'
+  taskType: 'chat' | 'access' | 'equipment' | 'evaluation'
   target: string
   startedAt: string
   durationMs: number

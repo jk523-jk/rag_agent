@@ -9,7 +9,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { DEMO_TODAY } from '@/mocks/labData'
+import { todayIso } from '@/utils/clock'
 import type { Person, PersonRole, Status } from '@/types'
 
 const workspace = useWorkspaceStore()
@@ -34,7 +34,7 @@ function gateCert(p: Person) {
 /** 资质是否有效：一律以有效期为准，不看 status 字段 */
 function certOk(p: Person): boolean {
   const c = gateCert(p)
-  return !!c && c.expireDate >= DEMO_TODAY
+  return !!c && c.expireDate >= todayIso
 }
 
 function certText(p: Person): string {
@@ -46,7 +46,7 @@ function certText(p: Person): string {
 /** 状态字段与有效期不一致的情况（库里真实存在） */
 function certStatusConflict(p: Person): boolean {
   const c = gateCert(p)
-  return !!c && c.status === '有效' && c.expireDate < DEMO_TODAY
+  return !!c && c.status === '有效' && c.expireDate < todayIso
 }
 
 const authorizedLabIds = (p: Person) =>

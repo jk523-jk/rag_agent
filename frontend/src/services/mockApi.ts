@@ -1,6 +1,6 @@
 // 模拟后端服务层。所有函数都是异步的，用来演示加载态；页面组件不得直接访问 mocks。
 // 失败场景可通过 options.fail 触发，便于测试错误提示与重试。
-import type { RunStep, Workflow, EvalTask, LogEntry } from '@/types'
+import type { EvalTask, LogEntry } from '@/types'
 
 export interface MockOptions {
   delay?: number
@@ -16,26 +16,6 @@ export function simulate<T>(value: () => T, { delay = 600, fail = false }: MockO
       else resolve(value())
     }, delay)
   })
-}
-
-export function runWorkflow(workflow: Workflow, opts: MockOptions & { failAt?: string } = {}) {
-  return simulate((): { steps: RunStep[]; logId: string } => {
-    const steps: RunStep[] = []
-    for (const node of workflow.nodes) {
-      const failed = opts.failAt === node.id
-      steps.push({
-        nodeId: node.id,
-        label: node.label,
-        status: failed ? 'failed' : 'success',
-        durationMs: 200 + Math.round(Math.random() * 600),
-        input: `来自上游节点的输入（${node.type}）`,
-        output: failed ? '' : `节点 ${node.type} 输出（模拟）`,
-        error: failed ? `模拟失败：节点「${node.label}」执行异常` : undefined,
-      })
-      if (failed) break
-    }
-    return { steps, logId: `task-${Math.random().toString(16).slice(2, 8)}` }
-  }, { delay: 300, ...opts })
 }
 
 export function runEvaluation(name: string, target: string, caseCount: number, opts: MockOptions = {}) {

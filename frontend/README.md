@@ -74,7 +74,8 @@ location /api/ {
 }
 ```
 
-本地一键起服（前后端一起）在仓库根目录：`.\start.ps1`。
+本地一键起服（前后端一起）在仓库根目录：`python run.py`（或双击 `start.bat`）。
+`.\start.ps1` 仍可用，它是 `run.py` 的兼容壳。详见根目录 `重构说明-run.py.md`。
 
 ## 目录结构
 

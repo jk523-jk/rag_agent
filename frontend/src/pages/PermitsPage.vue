@@ -11,7 +11,7 @@ import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useUiStore } from '@/stores/ui'
 import { judge, verdictTone } from '@/utils/accessDecision'
-import { DEMO_TODAY } from '@/mocks/labData'
+import { todayIso } from '@/utils/clock'
 import type { AccessDecision, AuthStatus, Status } from '@/types'
 
 const workspace = useWorkspaceStore()
@@ -25,7 +25,7 @@ const tab = ref<'judge' | 'grants'>('judge')
 /** 人员用「工号」作为选项值：姓名可能重名，工号唯一 */
 const personKey = ref('')
 const labId = ref('')
-const atDate = ref(DEMO_TODAY)
+const atDate = ref(todayIso)
 const decision = ref<AccessDecision | null>(null)
 const judgeError = ref('')
 
@@ -302,7 +302,7 @@ function judgeFor(row: GrantRow) {
       </template>
       <template #authFrom="{ row }"><span class="tabular-nums text-ink-2">{{ row.authFrom }}</span></template>
       <template #authTo="{ row }">
-        <span class="tabular-nums" :class="row.authTo < DEMO_TODAY ? 'text-err' : 'text-ink-2'">{{ row.authTo }}</span>
+        <span class="tabular-nums" :class="row.authTo < todayIso ? 'text-err' : 'text-ink-2'">{{ row.authTo }}</span>
       </template>
       <template #status="{ row }"><StatusBadge :status="AUTH_TONE[row.status as AuthStatus]" :label="row.status" /></template>
       <template #actions="{ row }">

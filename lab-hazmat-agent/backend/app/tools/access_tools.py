@@ -56,6 +56,10 @@ LEFT JOIN qualifications q
        ON q.person_id = p.id AND q.cert_type = '安全考试合格证'
 LEFT JOIN lab_authorizations a
        ON a.person_id = p.id AND a.lab_id = %(lab_id)s
+-- 实验室信息（实验室名、是否要求双人）必须显式 JOIN：
+-- 之前漏了这一句，SELECT 里的 l.lab_name 会报 Unknown column（1054）。
+LEFT JOIN labs l
+       ON l.lab_id = %(lab_id)s
 WHERE p.emp_no = %(person)s OR p.name = %(person)s
 ORDER BY p.id, q.expire_date DESC
 LIMIT 20
@@ -138,15 +142,23 @@ def _judge(row: dict, at_date: date, companion: int | None,
 
 
 @tool
-async def check_lab_access(person: str, lab_id: str, at_time: str) -> str:
+async def check_lab_access(person: str, lab_id: str, at_time: str | None = None) -> str:
     """判定某人某时能否进入某实验室，同时校验资质闸、授权闸、双人闸。
 
     Args:
         person: 姓名或工号（重名时返回多行，请用工号二次确认）。
         lab_id: 实验室编号，如 LAB-3。
         at_time: 时间点，格式 YYYY-MM-DD 或 YYYY-MM-DD HH:MM。
+            用户没有明确说具体时间时**必须留空**，留空即按服务器当前时间判定。
+            切勿自行推断「今天」是哪一天——模型对当前日期的认知不可靠，
+            一旦填错日期，三闸判定会整体错位（曾出现把今天写成 2024-04-05、
+            导致「资质已过期」被判为「资质有效」的情况）。
     """
-    at = _parse_time(at_time)
+    raw = (at_time or "").strip()
+    if raw in ("", "今天", "现在", "当前", "today", "now"):
+        at = datetime.now()
+    else:
+        at = _parse_time(raw)
     if at is None:
         return f"时间格式无法识别：{at_time}，请用 YYYY-MM-DD 或 YYYY-MM-DD HH:MM。"
 

@@ -32,11 +32,14 @@ TOOLS = [
 ]
 
 # 明确禁止出现的工具名（写入 / 导出 / 控制类）
-_FORBIDDEN_TOOL_NAMES = {
+FORBIDDEN_TOOL_NAMES = {
     "update", "delete", "insert", "drop", "alter", "truncate",
     "export", "download", "grant", "revoke", "open_door", "unlock",
     "write", "modify", "create", "set",
 }
+
+# 兼容旧引用名（原为私有常量）
+_FORBIDDEN_TOOL_NAMES = FORBIDDEN_TOOL_NAMES
 
 
 def _audit() -> None:
@@ -51,4 +54,27 @@ def _audit() -> None:
 
 _audit()
 
-__all__ = ["TOOLS", "REFUSAL"]
+
+def tools_for(names: list[str]) -> list:
+    """按 Agent 配置的工具白名单取出工具实例（**服务端唯一入口**）。
+
+    前端传来的名字一律当作不可信输入：
+    - 命中写入类禁名 → 直接抛错（配置被改坏时必须失败，而不是静默降级）
+    - 命中未知工具 → 抛错，避免拼错名字导致 Agent 悄悄少一个能力
+    - 结果按 TOOLS 的原始顺序返回，保证可复现
+    """
+    wanted = [str(n) for n in (names or [])]
+    banned = set(wanted) & FORBIDDEN_TOOL_NAMES
+    if banned:
+        raise ValueError(f"禁止授予写入类工具：{sorted(banned)}")
+    allowed = {t.name for t in TOOLS}
+    unknown = set(wanted) - allowed
+    if unknown:
+        raise ValueError(f"未知工具：{sorted(unknown)}")
+    if not wanted:
+        return []
+    picked = {t.name for t in TOOLS if t.name in set(wanted)}
+    return [t for t in TOOLS if t.name in picked]
+
+
+__all__ = ["TOOLS", "REFUSAL", "FORBIDDEN_TOOL_NAMES", "tools_for"]

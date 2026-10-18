@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 import {
-  LayoutDashboard, MessagesSquare, Bot, Workflow, FlaskConical, Microscope,
+  LayoutDashboard, MessagesSquare, Bot, FlaskConical, Microscope,
   Users, ShieldCheck, DoorOpen, ScrollText, ClipboardCheck, Settings,
 } from 'lucide-vue-next'
 
@@ -30,7 +30,6 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'AI 应用',
     items: [
       { path: '/agents', label: 'Agent 管理', icon: Bot },
-      { path: '/workflows', label: '工作流', icon: Workflow },
     ],
   },
   {
