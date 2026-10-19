@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.graph import start_session_reaper, stop_session_reaper
 from app.agents.store import list_agents
-from app.api import agents, chat, data, health
+from app.api import agents, chat, data, health, workflows
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.connection import close_pool, init_pool
@@ -66,3 +66,4 @@ app.include_router(health.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(data.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
+app.include_router(workflows.router, prefix="/api")

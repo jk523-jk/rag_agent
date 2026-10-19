@@ -18,6 +18,7 @@ const router = createRouter({
     { path: '/permits', name: 'permits', component: () => import('@/pages/PermitsPage.vue'), meta: { title: '许可管理', group: '实验室管理' } },
     { path: '/access', name: 'access', component: () => import('@/pages/AccessPage.vue'), meta: { title: '出入管理', group: '实验室管理' } },
     { path: '/logs', name: 'logs', component: () => import('@/pages/LogsPage.vue'), meta: { title: '运行日志', group: '系统观测' } },
+    { path: '/inspections', name: 'inspections', component: () => import('@/pages/InspectionsPage.vue'), meta: { title: '风险巡检', group: '系统观测' } },
     { path: '/evaluations', name: 'evaluations', component: () => import('@/pages/EvaluationsPage.vue'), meta: { title: '评估中心', group: '系统观测' } },
     { path: '/settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: '系统设置', group: '设置' } },
     // 工作流编排已于 v2.0 下线（未落地执行引擎），旧链接重定向到 Agent 管理

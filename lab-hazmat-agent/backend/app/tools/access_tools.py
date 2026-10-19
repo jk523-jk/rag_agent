@@ -270,7 +270,16 @@ DIALECT_PROMPT = """你是一个 MySQL 8 查询生成器。只输出一条 SELEC
 5. 化学品匹配优先用 cas_no，其次 chem_name 的精确匹配；不要用 LIKE '%x%' 做兜底猜测。
 6. 判定「某人某时的资质状态」必须同时看 status 与 expire_date：
    状态字段可能未及时更新，expire_date 才是硬标准。
-7. 表结构如下（含中文含义）：
+7. **涉及人员或设备时，结果必须带出可读名称，不能只留 ID。**
+   凡是输出里出现 person_id / keeper_id / witness_id / approver 等人员标识，
+   必须 JOIN persons 并额外选出姓名与工号，且把姓名放在工号之前：
+       LEFT JOIN persons p ON p.id = <人员标识列>
+       ... p.name AS 姓名, p.emp_no AS 工号 ...
+   只输出「工号1的人员」这类无姓名结果视为不合格：读的人无法确认是谁，
+   工号也要回库再查一次。设备同理：出现 equip_id 时必须 JOIN equipment 带出 equip_name，
+   出现 lab_id 时应带出 labs.lab_name。若一个 ID 对应的名称可能缺失，
+   用 LEFT JOIN，不要用 INNER JOIN 把记录直接过滤掉。
+8. 表结构如下（含中文含义）：
 {ddl}
 """
 
@@ -316,6 +325,7 @@ async def _generate_sql(question: str) -> str:
 
 
 def _rows_to_markdown(rows: list[dict], max_rows: int = 50) -> str:
+    """把查询结果渲染成 Markdown。人员姓名已由 _enrich_person_names 补在 ID 列之前。"""
     if not rows:
         return "无结果。"
     cols = list(rows[0].keys())
@@ -326,7 +336,73 @@ def _rows_to_markdown(rows: list[dict], max_rows: int = 50) -> str:
         for r in rows[:max_rows]
     ]
     tail = f"\n（共 {len(rows)} 行，仅显示前 {max_rows} 行）" if len(rows) > max_rows else ""
+
     return "\n".join([head, sep, *body]) + tail
+
+
+# 结果里一旦出现这些列名，就说明问题答案是「谁」，必须把姓名带出来。
+# 若不补，模型只能回答「工号1的人员」，读的人无法确认是谁。
+_ID_COLS_TO_NAMES = {
+    "person_id": "姓名",
+    "person": "姓名",
+    "keeper_id": "保管人",
+    "witness_id": "见证人",
+}
+
+
+async def _enrich_person_names(rows: list[dict]) -> list[dict]:
+    """兜底补名：结果含人员 ID 列且没有姓名列时，批量查出 name/emp_no 插到 ID 列前。
+
+    为什么要有这一层（而不是只靠提示词）：DIALECT_PROMPT 第 7 条已经要求 JOIN persons，
+    但那是软约束——模型漏写时，用户看到的就是「工号1的人员」这种无法核对的答案。
+    这里做机械补全，成本是一次额外查询，换来答案可读。
+    查不到姓名的（ID 不存在）显式标「未登记」，不静默留空。
+    """
+    if not rows:
+        return rows
+
+    cols = set(rows[0].keys())
+    if "姓名" in cols:
+        return rows                      # 模型已经带出姓名，不必再查
+
+    targets = [(c, label) for c, label in _ID_COLS_TO_NAMES.items() if c in cols]
+    if not targets:
+        return rows
+
+    id_col = targets[0][0]
+    ids = sorted({r.get(id_col) for r in rows if r.get(id_col) is not None})
+    if not ids:
+        return rows
+
+    try:
+        placeholders = ", ".join(f"%(p{i})s" for i in range(len(ids)))
+        params = {f"p{i}": v for i, v in enumerate(ids)}
+        people = await fetch_all(
+            f"SELECT id, name, emp_no FROM persons WHERE id IN ({placeholders})",
+            params,
+        )
+    except Exception as exc:                                      # noqa: BLE001
+        log.warning("补查人员姓名失败（结果仍按原样返回）：%s: %s", type(exc).__name__, exc)
+        return rows
+
+    name_of = {p["id"]: p["name"] for p in people}
+    emp_of = {p["id"]: p["emp_no"] for p in people}
+
+    out: list[dict] = []
+    for r in rows:
+        pid = r.get(id_col)
+        name = name_of.get(pid) or "未登记"
+        emp = emp_of.get(pid)
+        new_row: dict = {}
+        for k, v in r.items():
+            if k == id_col:
+                # 「姓名（工号）」在前，原始 ID 保留在后，两处都不丢
+                new_row["姓名"] = f"{name}（{emp}）" if emp else name
+                new_row[k] = v
+            else:
+                new_row[k] = v
+        out.append(new_row)
+    return out
 
 
 @tool
@@ -358,4 +434,6 @@ async def query_records(question: str) -> str:
             "注意区分两种情况：(1) 确实不存在该记录；(2) 化学品名称匹配失败"
             "（例如问「双氧水」而台账登记为「过氧化氢」）。请尝试提供 CAS 号确认。"
         )
+    # 兜底补人名：模型没按提示词 JOIN persons 时，这里机械补上「姓名（工号）」
+    rows = await _enrich_person_names(rows)
     return _rows_to_markdown(rows)

@@ -173,3 +173,79 @@ export async function setAgentStatusApi(id: string, status: 'enabled' | 'disable
 export async function deleteAgentApi(id: string): Promise<void> {
   await sendJson<{ deleted: string }>('DELETE', `/api/agents/${encodeURIComponent(id)}`)
 }
+
+// ==================== 风险巡检（工作流） ====================
+
+import type { InspectionRun, InspectionRunSummary, WorkflowTemplate } from '@/types'
+
+interface RawFindingEvidence { label: string; value: string }
+interface RawFinding {
+  key: string; check: string; severity: 'high' | 'medium' | 'low'
+  title: string; subject_type: string; subject_id: string; subject_label: string
+  evidence: RawFindingEvidence[]; owner: string; owner_hint: string; suggest: string
+  links: { label: string; to: string }[]; first_seen: string; days_open: number
+}
+interface RawCheckResult { id: string; label: string; status: 'ok' | 'error' | 'skipped'; duration_ms: number; count: number; error?: string }
+interface RawRun {
+  run_id: string; workflow_id: string; workflow_name: string
+  started_at: string; finished_at: string; duration_ms: number
+  status: 'success' | 'partial' | 'failed'; as_of: string
+  params: Record<string, unknown>
+  counts: { high: number; medium: number; low: number; total: number }
+  checks: RawCheckResult[]; findings: RawFinding[]; incomplete_reason?: string
+}
+
+function toRun(r: RawRun): InspectionRun {
+  return {
+    runId: r.run_id,
+    workflowId: r.workflow_id,
+    workflowName: r.workflow_name,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+    durationMs: r.duration_ms,
+    status: r.status,
+    asOf: r.as_of,
+    params: r.params ?? {},
+    counts: r.counts,
+    incompleteReason: r.incomplete_reason ?? '',
+    checks: (r.checks ?? []).map((c) => ({
+      id: c.id, label: c.label, status: c.status,
+      durationMs: c.duration_ms, count: c.count, error: c.error,
+    })),
+    findings: (r.findings ?? []).map((f) => ({
+      key: f.key, check: f.check, severity: f.severity, title: f.title,
+      subjectType: f.subject_type as InspectionRun['findings'][number]['subjectType'],
+      subjectId: f.subject_id, subjectLabel: f.subject_label,
+      evidence: f.evidence ?? [], owner: f.owner ?? '', ownerHint: f.owner_hint ?? '',
+      suggest: f.suggest ?? '', links: f.links ?? [],
+      firstSeen: f.first_seen ?? '', daysOpen: f.days_open ?? 0,
+    })),
+  }
+}
+
+export async function listWorkflowTemplates(): Promise<WorkflowTemplate[]> {
+  const data = await getJson<{ workflows: WorkflowTemplate[] }>('/api/workflows')
+  return data.workflows ?? []
+}
+
+export async function runWorkflowApi(
+  id: string,
+  params?: Record<string, unknown>,
+  audience: 'admin' | 'agent' = 'admin',
+): Promise<InspectionRun> {
+  const raw = await sendJson<RawRun>('POST', `/api/workflows/${encodeURIComponent(id)}/run`, { params, audience })
+  return toRun(raw)
+}
+
+export async function listWorkflowRuns(workflowId?: string, limit = 20): Promise<InspectionRunSummary[]> {
+  const qs = new URLSearchParams()
+  if (workflowId) qs.set('workflow_id', workflowId)
+  qs.set('limit', String(limit))
+  const data = await getJson<{ runs: InspectionRunSummary[] }>(`/api/workflows/runs?${qs}`)
+  return data.runs ?? []
+}
+
+export async function fetchWorkflowRun(runId: string, audience: 'admin' | 'agent' = 'admin'): Promise<InspectionRun> {
+  const raw = await getJson<RawRun>(`/api/workflows/runs/${encodeURIComponent(runId)}?audience=${audience}`)
+  return toRun(raw)
+}

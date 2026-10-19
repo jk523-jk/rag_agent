@@ -1,5 +1,86 @@
 export type Status = 'success' | 'running' | 'failed' | 'idle' | 'warning' | 'pending' | 'disabled'
 
+// ==================== 风险巡检（工作流） ====================
+
+export type FindingSeverity = 'high' | 'medium' | 'low'
+export type InspectionCheckStatus = 'ok' | 'error' | 'skipped'
+export type InspectionRunStatus = 'success' | 'partial' | 'failed'
+
+export interface WorkflowParam {
+  name: string
+  label: string
+  type: 'select' | 'number' | 'boolean'
+  required?: boolean
+  options?: string[]
+  default?: number | boolean | string
+}
+
+export interface WorkflowTemplate {
+  id: string
+  name: string
+  description: string
+  checks: string[]
+  windowDays: number
+  params: WorkflowParam[]
+}
+
+export interface FindingEvidence {
+  label: string
+  value: string
+}
+
+export interface InspectionFinding {
+  key: string
+  check: string
+  severity: FindingSeverity
+  title: string
+  subjectType: 'person' | 'equipment' | 'item' | 'lab'
+  subjectId: string
+  subjectLabel: string
+  evidence: FindingEvidence[]
+  owner: string
+  ownerHint: string
+  suggest: string
+  links: { label: string; to: string }[]
+  firstSeen: string
+  daysOpen: number
+}
+
+export interface InspectionCheckResult {
+  id: string
+  label: string
+  status: InspectionCheckStatus
+  durationMs: number
+  count: number
+  error?: string
+}
+
+export interface InspectionRun {
+  runId: string
+  workflowId: string
+  workflowName: string
+  startedAt: string
+  finishedAt: string
+  durationMs: number
+  status: InspectionRunStatus
+  asOf: string
+  params: Record<string, unknown>
+  counts: { high: number; medium: number; low: number; total: number }
+  checks: InspectionCheckResult[]
+  findings: InspectionFinding[]
+  incompleteReason?: string
+}
+
+export interface InspectionRunSummary {
+  run_id: string
+  workflow_id: string
+  workflow_name: string
+  started_at: string
+  status: InspectionRunStatus
+  counts: { high: number; medium: number; low: number; total: number }
+  duration_ms: number
+}
+
 // ==================== AI 应用 ====================
 
 export interface Agent {

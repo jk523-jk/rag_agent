@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import {
   LayoutDashboard, MessagesSquare, Bot, FlaskConical, Microscope,
-  Users, ShieldCheck, DoorOpen, ScrollText, ClipboardCheck, Settings,
+  Users, ShieldCheck, DoorOpen, ScrollText, ClipboardCheck, Settings, ListChecks,
 } from 'lucide-vue-next'
 
 export interface NavItem {
@@ -45,6 +45,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: '系统观测',
     items: [
+      { path: '/inspections', label: '风险巡检', icon: ListChecks },
       { path: '/logs', label: '运行日志', icon: ScrollText },
       { path: '/evaluations', label: '评估中心', icon: ClipboardCheck },
     ],

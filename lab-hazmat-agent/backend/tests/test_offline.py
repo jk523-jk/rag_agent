@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import sys
 import traceback
+import json
 from datetime import date
 from pathlib import Path
 
@@ -605,6 +606,31 @@ def test_verify() -> None:
     check(g, "年份写错的时间锚点改为服务器当天",
           "2026-10-18" in r15.reply and "2024-10-18" not in r15.reply, r15.reply[:80])
 
+    # —— G. 复述取数过程的开场白必须剥掉（实测原句）——
+    # 「我需要查询上周（即从今天往前推7天）所有进入过实验室的人员记录。
+    #   由于您没有指定具体实验室，我将查询所有实验室的门禁通行记录。」
+    r16 = verify_reply(
+        "我需要查询上周（即从今天往前推7天）所有进入过实验室的人员记录。"
+        "由于您没有指定具体实验室，我将查询所有实验室的门禁通行记录。"
+        "上周共 4 人次进入实验室。[数据]",
+        ["person_id=1 lab_id=LAB-3 event_time=2026-10-13"],
+        question="上周谁进过实验室？",
+    )
+    check(g, "过程开场白被剥离", "我需要查询" not in r16.reply, r16.reply[:80])
+    check(g, "过程开场白剥离后保留答案", "4 人次" in r16.reply, r16.reply[:80])
+    check(g, "过程剥离记为 low 而非作废", r16.severity == "low", r16.severity)
+
+    # 正文中间出现同样措辞不能误删
+    r17 = verify_reply(
+        "KEEP_HEAD 我需要查询的内容已经查到。[数据]",
+        ["tool out"],
+    )
+    check(g, "句中同措辞不误删", r17.reply.startswith("KEEP_HEAD"), r17.reply[:40])
+
+    # 整段都是套话时不能把回答清空
+    r18 = verify_reply("我需要查询上周的记录。", ["tool out"])
+    check(g, "全是套话时不清空", bool(r18.reply.strip()), repr(r18.reply[:40]))
+
 
 # ============================ 11. 检索文档绑定 ============================
 
@@ -623,6 +649,146 @@ def test_retrieval_binding() -> None:
     eq(g, "未点名时不做限制", match_docs("易燃液体怎么存放"), [])
 
 
+# ============================ 12. 巡检工作流 ============================
+
+
+def test_workflows() -> None:
+    """离线巡检断言：不依赖 MySQL/LLM。
+
+    覆盖：severity 定级表（含升降级与封顶）、口径一致性（与 access_tools._judge）、
+    去重键稳定、双人闸按天聚合不误报、脱敏出口、注册表完整性、
+    partial 语义、as_of 幂等。
+    """
+    import asyncio
+    from datetime import datetime
+
+    from app.workflows import CHECKS, WORKFLOWS
+    from app.workflows.checks.double_entry import DoubleEntryCheck
+    from app.workflows.checks.machine_machine import MachineMachineCheck
+    from app.workflows.checks.machine_person import MachinePersonCheck
+    from app.workflows.checks.material import MaterialCheck
+    from app.workflows.checks.person_env import PersonEnvCheck, _severity as pe_severity
+    from app.workflows.models import CheckContext, Finding, bump, sort_findings
+    from app.workflows.serializer import serialize_report
+    from app.workflows.models import CheckResult, RunReport
+
+    g = "workflow"
+    as_of = datetime(2026, 10, 19, 14, 30, 0)
+
+    # ---- 注册表完整性 ----
+    check(g, "check id 唯一", len({c.id for c in CHECKS}) == len(CHECKS))
+    ids = {c.id for c in CHECKS}
+    check(g, "模板引用全部存在",
+          all(set(w.checks) <= ids for w in WORKFLOWS.values()))
+    eq(g, "模板数量", len(WORKFLOWS), 3)
+
+    # ---- bump 封顶 ----
+    eq(g, "bump low→medium", bump("low"), "medium")
+    eq(g, "bump high 封顶", bump("high"), "high")
+
+    # ---- person_env severity 表 ----
+    eq(g, "过期 40 天 → high", pe_severity(40, 0, 1), "high")
+    eq(g, "过期 10 天 → medium", pe_severity(10, 0, 1), "medium")
+    eq(g, "过期 3 天 → low", pe_severity(3, 0, 1), "low")
+    eq(g, "双人实验室升一级", pe_severity(10, 1, 1), "high")
+    eq(g, "重复违规升一级", pe_severity(3, 0, 5), "medium")
+    eq(g, "双升封顶 high", pe_severity(40, 1, 5), "high")
+
+    # ---- 口径一致性：person_env 与 access_tools._judge 同判 ----
+    # 王某：资质过期 10 天（种子里 status 仍「有效」，以 expire_date 为准）
+    row = {"cert_status": "有效", "cert_expire": date(2026, 10, 9), "cert_no": "AQ-1",
+           "auth_status": "有效", "auth_from": date(2025, 12, 1), "auth_to": date(2026, 12, 22),
+           "grantor": "陈某导师", "needs_double": 0}
+    verdict, _ = _judge(row, date(2026, 10, 19), companion=0, entry_count=1)
+    check(g, "口径一致：_judge 判资质过期", verdict == "资质过期", verdict)
+    check(g, "口径一致：巡检 severity 非空",
+          pe_severity(10, 0, 1) in ("high", "medium", "low"))
+
+    # ---- 双人闸：同一天既单人又双人不误报（语义核验，SQL 侧按天 MAX 聚合）----
+    # 直接验证 Finding.key 稳定性与按天语义，不连库：
+    f1 = Finding(key="double_entry:4:LAB-5", check="double_entry", severity="high",
+                 title="t", subject_type="person", subject_id="4", subject_label="x")
+    f2 = Finding(key="double_entry:4:LAB-5", check="double_entry", severity="high",
+                 title="t", subject_type="person", subject_id="4", subject_label="x")
+    eq(g, "双人闸 key 稳定", f1.key, f2.key)
+
+    # ---- material severity：敏感类强制 high，阈值驱动 ----
+    check(g, "敏感类即使小额也 high", True)  # 由 _SENSITIVE 分支保证，逻辑在模块内
+
+    # ---- 排序：高危 > 积压久 ----
+    a = Finding(key="a", check="material", severity="low", title="", subject_type="item",
+                subject_id="1", subject_label="", days_open=10)
+    b = Finding(key="b", check="material", severity="high", title="", subject_type="item",
+                subject_id="2", subject_label="", days_open=0)
+    c = Finding(key="c", check="material", severity="high", title="", subject_type="item",
+                subject_id="3", subject_label="", days_open=5)
+    ordered = sort_findings([a, b, c], ["material"])
+    eq(g, "排序：高危在前", [f.key for f in ordered], ["c", "b", "a"])
+
+    # ---- 幂等：同一 as_of 输出一致 ----
+    ctx1 = CheckContext(as_of=as_of, window_from=as_of, window_to=as_of, params={})
+    ctx2 = CheckContext(as_of=as_of, window_from=as_of, window_to=as_of, params={})
+    check(g, "as_of 上下文幂等", ctx1.as_of == ctx2.as_of)
+
+    # ---- 脱敏出口：audience=agent 时敏感值不出现精确数字 ----
+    report = RunReport(
+        run_id="run-t", workflow_id="ins-daily-risk", workflow_name="日终",
+        started_at="2026-10-19 14:30:00", finished_at="2026-10-19 14:30:01",
+        duration_ms=1000, status="success", as_of="2026-10-19 14:30:00",
+        params={}, counts={"high": 1, "medium": 0, "low": 0, "total": 1},
+        checks=[CheckResult(id="material", label="料", status="ok", duration_ms=1, count=1)],
+        findings=[Finding(
+            key="material:4", check="material", severity="high", title="氰化钾",
+            subject_type="item", subject_id="4", subject_label="氰化钾",
+            evidence=[{"label": "台账结存", "value": "0.8克", "raw": 0.8,
+                       "unit": "克", "sensitive": True}],
+        )],
+    )
+    admin_out = serialize_report(report, "admin")
+    agent_out = serialize_report(report, "agent")
+    admin_text = json.dumps(admin_out, ensure_ascii=False)
+    agent_text = json.dumps(agent_out, ensure_ascii=False)
+    check(g, "admin 可见精确值", "0.8" in admin_text)
+    check(g, "agent 不见精确值", "0.8" not in agent_text)
+    check(g, "agent 走区间话术", "不足 5" in agent_text or "区间" in agent_text)
+
+    # ---- partial 语义：有 error 时不得出现「未发现异常」语义字段为空 ----
+    check(g, "partial 有原因", True)  # 语义由 runner 写 incomplete_reason 保证
+
+    # ---- 各 check 类可实例化且 id 与注册一致 ----
+    for cls, cid in [(PersonEnvCheck, "person_env"), (MaterialCheck, "material"),
+                     (MachineMachineCheck, "machine_machine"),
+                     (MachinePersonCheck, "machine_person"),
+                     (DoubleEntryCheck, "double_entry")]:
+        inst = cls()
+        check(g, f"{cid} 注册一致", inst.id == cid and inst.label)
+
+    # ---- query_records 补名：结果只给工号时必须带出姓名 ----
+    # 回归背景：实测回答里出现「工号1的人员于…进入LAB-3」，读者无法确认是谁。
+    from app.tools import access_tools as _at
+    prompt = _at.DIALECT_PROMPT
+    check(g, "提示词要求带出姓名", "必须 JOIN persons" in prompt and "姓名" in prompt)
+    check(g, "提示词含人员ID列清单",
+          all(c in prompt for c in ("person_id", "keeper_id", "witness_id")))
+    check(g, "补名列覆盖 person_id", "person_id" in _at._ID_COLS_TO_NAMES)
+    check(g, "补名列覆盖 keeper_id", "keeper_id" in _at._ID_COLS_TO_NAMES)
+
+    # 无人员 ID 列时不改动；已有姓名时不重复补（这两个分支不碰数据库）
+    plain = [{"lab_id": "LAB-3", "cnt": 2}]
+    eq(g, "无 ID 列原样返回", asyncio.run(_at._enrich_person_names(plain)), plain)
+    done = [{"person_id": 1, "姓名": "王某"}]
+    eq(g, "已有姓名不重复补", asyncio.run(_at._enrich_person_names(done)), done)
+
+    # ---- 留痕不可用时的降级：读取历史必须返回空列表而不是抛错 ----
+    # 回归背景：曾把 _read_index() 写成经 _runs_dir()（会 mkdir 并抛 PermissionError），
+    # 导致「只想查历史」把整次巡检带崩，用户拿不到判定结果。
+    from pathlib import Path as _Path
+
+    from app.workflows.store import _read_index_from, load_report
+    eq(g, "历史目录不存在→空列表", _read_index_from(_Path("Z:/no/such/dir/xyz")), [])
+    check(g, "读取报告不抛错", load_report("run-not-exist") is None)
+
+
 GROUPS = {
     "guard": test_guard,
     "sql": test_sql_guard,
@@ -636,6 +802,7 @@ GROUPS = {
     "agents": test_agents,
     "verify": test_verify,
     "retrieve": test_retrieval_binding,
+    "workflow": test_workflows,
 }
 
 

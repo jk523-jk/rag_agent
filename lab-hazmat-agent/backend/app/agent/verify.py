@@ -190,6 +190,58 @@ def _check_dates(reply: str, evidence: str, issues: list[Issue]) -> list[str]:
     return sorted(set(unverified))
 
 
+# 取数过程套话的开头。只匹配**段首**，且要求是完整一句（以句末标点结尾），
+# 避免把正文里正常出现的「我需要查询的依据如下」误删。
+_PROCESS_PREAMBLE_RE = re.compile(
+    r"^\s*(?:"
+    r"我需要查询|我需要先查询|需要查询|我先查询|我将查询|我会查询|我来查询|让我查询|让我先查询|"
+    r"根据您的问题|根据您的需求|为了回答您的问题|为回答您的问题|首先我需要|首先，我需要|"
+    r"由于您没有指定|因为您没有指定|您没有指定|未指定具体|让我先|我将先|我会先"
+    r")",
+)
+_SENT_END = "。！？\n"
+
+
+def _strip_process_preamble(reply: str, issues: list[Issue]) -> tuple[str, bool]:
+    """剥掉回答开头的取数过程套话。
+
+    实测输出：「我需要查询上周（即从今天往前推7天）所有进入过实验室的人员记录。
+    由于您没有指定具体实验室，我将查询所有实验室的门禁通行记录。」——两句都是过程，
+    没有一句是答案。这里按句逐句剥，直到第一句不像过程为止。
+
+    保守原则：只剥**开头连续**的过程句；只要第一句切不出过程句就原样返回。
+    宁可不删，也不冒险啃掉正文。
+    """
+    if not reply:
+        return reply, False
+
+    text = reply.lstrip()
+    removed: list[str] = []
+
+    while text:
+        m = _PROCESS_PREAMBLE_RE.match(text)
+        if not m:
+            break
+        # 找到这一句的边界
+        end = -1
+        for i, ch in enumerate(text):
+            if ch in _SENT_END:
+                end = i + 1
+                break
+        if end == -1:
+            break                    # 只有半句、找不到句末：不动
+        removed.append(text[:end])
+        text = text[end:].lstrip()
+
+    if not removed:
+        return reply, False
+
+    log.warning("已剥离回答开头的取数过程套话 %d 句", len(removed))
+    for r in removed:
+        issues.append(Issue("process_preamble", r[:40], "", fixed=True))
+    return text or reply, True
+
+
 def verify_reply(
     reply: str,
     tool_outputs: list[str],
@@ -239,6 +291,13 @@ def verify_reply(
     text, range_fixed = _fix_ranges(text, evidence, issues)
     unverified_dates = _check_dates(text, evidence, issues)
 
+    # —— D 档：复述取数过程 ——
+    # 实测模型会把准备过程写进正文（「我需要查询上周…由于您没有指定具体实验室，
+    # 我将查询所有实验室的门禁通行记录。」），用户要的是答案不是工作计划。
+    # 提示词「输出要求」里已明确禁止，这里做机械兜底：只剥开头的整句，
+    # 不动正文——误剥一句开场白的代价，远小于让每段回答都带一句工作日志。
+    text, process_fixed = _strip_process_preamble(text, issues)
+
     fixed_any = asof_fixed or range_fixed
     if fixed_any:
         text = text.rstrip() + "\n\n（已按查询结果校正时间与数量；以工具返回为准。）"
@@ -248,7 +307,7 @@ def verify_reply(
             f"\n\n（提示：回答中的日期 {'、'.join(unverified_dates)} 未在本次查询结果中出现，请以查询结果为准。）"
         )
 
-    severity = "medium" if fixed_any else ("low" if unverified_dates else "none")
+    severity = "medium" if fixed_any else ("low" if unverified_dates or process_fixed else "none")
     return VerifyResult(ok=not fixed_any and not unverified_dates, reply=text, issues=issues, severity=severity)
 
 

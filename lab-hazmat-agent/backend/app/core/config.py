@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     access_check_concurrency: int = 5
     session_ttl_seconds: int = 3600
 
+    # ---- 巡检工作流 ----
+    workflow_runs_path: str = "data/runs"
+    workflow_run_retention: int = 50
+    workflow_concurrency: int = 5
+    workflow_timeout_seconds: int = 30
+
     # ---- 只读护栏 ----
     sql_max_rows: int = 200
     sql_timeout_ms: int = 8000
@@ -114,6 +120,12 @@ class Settings(BaseSettings):
         """Agent 配置文件的绝对路径。相对路径同样按项目根解析。"""
         raw = (self.agents_store_path or "data/agents.json").strip()
         path = Path(raw).expanduser()
+        return path if path.is_absolute() else (_PROJECT_ROOT / path).resolve()
+
+    @property
+    def workflow_runs_dir(self) -> Path:
+        """巡检运行记录目录的绝对路径。相对路径按项目根解析（同 agents_path）。"""
+        path = Path(self.workflow_runs_path).expanduser()
         return path if path.is_absolute() else (_PROJECT_ROOT / path).resolve()
 
     def _ddl_dirs(self) -> list[Path]:
