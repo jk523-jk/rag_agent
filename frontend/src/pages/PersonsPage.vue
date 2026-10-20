@@ -106,7 +106,6 @@ const columns: Column[] = [
     </template>
   </PageHeader>
 
-  <p class="mb-4 text-[12px] text-ink-3">以下为演示数据（模拟），不代表真实人员台账。</p>
 
   <section aria-label="人员概览" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard label="人员总数" :value="String(workspace.state.persons.length)" hint="含教师与学生" />

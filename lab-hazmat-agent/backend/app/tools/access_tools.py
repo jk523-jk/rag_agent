@@ -25,6 +25,7 @@ from langchain_openai import ChatOpenAI
 from app.core.config import get_settings
 from app.db.connection import fetch_all
 from app.db.sql_guard import GuardError
+from app.tools.lab_resolver import resolve_lab
 
 log = logging.getLogger(__name__)
 
@@ -103,9 +104,14 @@ def _judge(row: dict, at_date: date, companion: int | None,
     reasons.append(
         f"资质闸：{'通过' if ok_cert else '未通过'}"
         f"（安全考试合格证 {row.get('cert_no') or '无'}，"
-        f"有效期至 {row.get('cert_expire') or '无'}，状态 {row.get('cert_status') or '无'}）"
+        f"有效期至 {row.get('cert_expire') or '无'}，状态 {row.get('cert_status') or '无'}"
+        f"{'；台账状态字段为「有效」，但已过有效期，以日期为准' if row.get('cert_status') == '有效' and row.get('cert_expire') is not None and row['cert_expire'] < at_date else ''}）"
     )
     if not ok_cert:
+        reasons.append("授权闸：未判定（前序闸未通过）")
+        reasons.append(
+            f"双人闸：未判定（前序闸未通过；实验室{'要求' if row.get('needs_double') else '不要求'}双人同行）"
+        )
         return "资质过期", reasons
 
     ok_auth = (
@@ -120,6 +126,9 @@ def _judge(row: dict, at_date: date, companion: int | None,
         f"状态 {row.get('auth_status') or '无'}，授权人 {row.get('grantor') or '无'}）"
     )
     if not ok_auth:
+        reasons.append(
+            f"双人闸：未判定（前序闸未通过；实验室{'要求' if row.get('needs_double') else '不要求'}双人同行）"
+        )
         return "无授权", reasons
 
     if row.get("needs_double"):
@@ -161,6 +170,10 @@ async def check_lab_access(person: str, lab_id: str, at_time: str | None = None)
         at = _parse_time(raw)
     if at is None:
         return f"时间格式无法识别：{at_time}，请用 YYYY-MM-DD 或 YYYY-MM-DD HH:MM。"
+
+    lab_id, lab_note = await resolve_lab(lab_id)
+    if lab_note:
+        return lab_note
 
     # 先确认实验室存在，避免把「编号写错」误报成「查无此人」
     lab_rows = await fetch_all(_SQL_LAB, {"lab_id": lab_id})

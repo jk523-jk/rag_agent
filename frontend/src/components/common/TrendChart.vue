@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { TrendPoint } from '@/mocks/trend'
+
+interface TrendPoint {
+  date: string
+  value: number
+}
 
 // 轻量 SVG 折线面积图：只服务于 7/30 天对话趋势这一个场景，不引入图表库
 const props = defineProps<{ data: TrendPoint[]; days: number }>()
@@ -51,7 +55,7 @@ function onMove(e: PointerEvent) {
       :viewBox="`0 0 ${W} ${H}`"
       class="h-64 w-full"
       role="img"
-      :aria-label="`近 ${days} 天对话数趋势（模拟数据）`"
+      :aria-label="`近 ${days} 天对话数趋势`"
       @pointermove="onMove"
       @pointerleave="hovered = null"
     >

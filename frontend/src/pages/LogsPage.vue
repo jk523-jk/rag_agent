@@ -10,6 +10,7 @@ import DataTable, { type Column } from '@/components/common/DataTable.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useUiStore } from '@/stores/ui'
 import { copyText, downloadText, fmtDuration } from '@/utils/format'
+import { todayIso } from '@/utils/clock'
 import type { LogEntry } from '@/types'
 
 const workspace = useWorkspaceStore()
@@ -36,8 +37,8 @@ const filtered = computed(() => {
   let list = workspace.state.logs.filter((l) => {
     if (typeFilter.value !== 'all' && l.taskType !== typeFilter.value) return false
     if (statusFilter.value !== 'all' && l.status !== statusFilter.value) return false
-    if (rangeFilter.value === 'today' && !l.startedAt.startsWith('2026-10-15')) return false
-    if (rangeFilter.value === '7d' && l.startedAt < '2026-10-09') return false
+    if (rangeFilter.value === 'today' && !l.startedAt.startsWith(todayIso)) return false
+    if (rangeFilter.value === '7d' && l.startedAt < dateDaysAgo(6)) return false
     if (!q) return true
     return l.id.toLowerCase().includes(q) || l.target.toLowerCase().includes(q)
   })
@@ -52,6 +53,12 @@ const filtered = computed(() => {
 
 const paged = computed(() => filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / pageSize)))
+
+function dateDaysAgo(days: number): string {
+  const date = new Date(`${todayIso}T12:00:00`)
+  date.setDate(date.getDate() - days)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 watch([keyword, typeFilter, statusFilter, rangeFilter], () => { page.value = 1 })
 
@@ -78,8 +85,9 @@ function exportRows() {
     ui.toast('当前没有可导出的记录', 'error')
     return
   }
-  downloadText(`execution-logs-2026-10-15.json`, JSON.stringify({ isMock: true, rows: filtered.value }, null, 2))
-  ui.toast(`已导出 ${filtered.value.length} 条记录（含模拟标记）`)
+  const source = workspace.dataSource
+  downloadText(`execution-logs-${todayIso}-${rangeFilter.value}.json`, JSON.stringify({ source, exportedAt: new Date().toISOString(), rows: filtered.value }, null, 2))
+  ui.toast(`已导出 ${filtered.value.length} 条记录`)
 }
 
 async function copyId(id: string) {
@@ -178,7 +186,7 @@ watch(() => route.query.id, (id) => {
           <div class="flex items-center justify-between gap-2 border-b border-line pb-2"><dt class="text-ink-2">开始时间</dt><dd class="tabular-nums text-ink">{{ detail.startedAt }}</dd></div>
           <div class="flex items-center justify-between gap-2 border-b border-line pb-2"><dt class="text-ink-2">耗时</dt><dd class="tabular-nums text-ink">{{ fmtDuration(detail.durationMs) }}</dd></div>
           <div class="flex items-center justify-between gap-2 border-b border-line pb-2"><dt class="text-ink-2">状态</dt><dd><StatusBadge :status="detail.status" /></dd></div>
-          <div class="flex items-center justify-between gap-2 border-b border-line pb-2"><dt class="text-ink-2">Token 消耗（模拟）</dt><dd class="tabular-nums text-ink">{{ detail.tokens.toLocaleString() }}</dd></div>
+          <div class="flex items-center justify-between gap-2 border-b border-line pb-2"><dt class="text-ink-2">Token 消耗</dt><dd class="tabular-nums text-ink">{{ detail.tokens.toLocaleString() }}</dd></div>
         </dl>
         <p class="mt-2 flex gap-2">
           <button type="button" class="btn-default h-7 px-2 text-[12px]" @click="copyId(detail.id)"><Copy class="size-3.5" aria-hidden="true" />复制任务 ID</button>
@@ -209,9 +217,6 @@ watch(() => route.query.id, (id) => {
         <button type="button" class="btn-default mt-2 h-7 px-2 text-[12px]" @click="copyError"><Copy class="size-3.5" aria-hidden="true" />复制错误信息</button>
       </section>
 
-      <p class="rounded-[var(--radius-control)] bg-warn-soft px-3 py-2 text-[12px] text-warn">
-        本记录为模拟数据，Token 消耗与耗时均为演示值。
-      </p>
     </div>
   </AppDrawer>
 </template>

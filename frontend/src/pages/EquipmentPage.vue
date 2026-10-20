@@ -128,23 +128,25 @@ const columns: Column[] = [
 watch(() => route.query.create, (v) => {
   if (v) {
     editing.value = null
-    formOpen.value = true
+    if (workspace.dataSource === 'mock') formOpen.value = true
     router.replace({ path: '/equipment' })
   }
 }, { immediate: true })
 
 function openCreate() {
+  if (workspace.dataSource !== 'mock') return
   editing.value = null
   formOpen.value = true
 }
 
 function openEdit(e: Equipment) {
+  if (workspace.dataSource !== 'mock') return
   editing.value = e
   formOpen.value = true
 }
 
 function doDelete() {
-  if (!confirmDelete.value) return
+  if (workspace.dataSource !== 'mock' || !confirmDelete.value) return
   const name = confirmDelete.value.equipName
   const id = confirmDelete.value.id
   // 级联：设备移除时其借还记录一并移除，避免留下指向不存在设备的孤儿记录
@@ -166,7 +168,7 @@ const openLoans = computed(() =>
 <template>
   <PageHeader title="设备管理" description="管理实验室设备台账、启用状态与校准有效期，查看借出与逾期情况。">
     <template #actions>
-      <button type="button" class="btn-primary" @click="openCreate">
+      <button v-if="workspace.dataSource === 'mock'" type="button" class="btn-primary" @click="openCreate">
         <Plus class="size-4" aria-hidden="true" />新增设备
       </button>
     </template>
@@ -190,7 +192,6 @@ const openLoans = computed(() =>
     </template>
   </PageHeader>
 
-  <p class="mb-4 text-[12px] text-ink-3">以下为演示数据（模拟），不代表真实资产台账。</p>
 
   <section aria-label="设备概览" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard label="设备总数" :value="String(workspace.state.equipment.length)" hint="含储存设施" />
@@ -232,8 +233,8 @@ const openLoans = computed(() =>
     </ul>
   </section>
 
-  <EmptyState v-if="!workspace.state.equipment.length" title="还没有设备" description="新增第一台设备，或从后端同步设备台账。">
-    <template #action><button type="button" class="btn-primary" @click="openCreate">新增设备</button></template>
+  <EmptyState v-if="!workspace.state.equipment.length" title="还没有设备" :description="workspace.dataSource === 'mock' ? '新增第一台设备，或从后端同步设备台账。' : '当前数据源没有返回设备记录。请检查连接状态后重试。'">
+    <template v-if="workspace.dataSource === 'mock'" #action><button type="button" class="btn-primary" @click="openCreate">新增设备</button></template>
   </EmptyState>
   <EmptyState v-else-if="!rows.length" title="没有符合条件的设备" description="调整搜索词或筛选条件试试。" />
 
@@ -268,8 +269,8 @@ const openLoans = computed(() =>
       </template>
       <template #actions="{ row }">
         <span class="inline-flex gap-1" @click.stop>
-          <button type="button" class="btn-ghost h-7 px-2 text-[12px]" @click="openEdit(row)"><Pencil class="size-3.5" aria-hidden="true" />编辑</button>
-          <button type="button" class="btn-ghost h-7 px-2 text-[12px] text-err" @click="confirmDelete = row"><Trash2 class="size-3.5" aria-hidden="true" />移除</button>
+          <button v-if="workspace.dataSource === 'mock'" type="button" class="btn-ghost h-7 px-2 text-[12px]" @click="openEdit(row)"><Pencil class="size-3.5" aria-hidden="true" />编辑</button>
+          <button v-if="workspace.dataSource === 'mock'" type="button" class="btn-ghost h-7 px-2 text-[12px] text-err" @click="confirmDelete = row"><Trash2 class="size-3.5" aria-hidden="true" />移除</button>
         </span>
       </template>
     </DataTable>
@@ -316,10 +317,10 @@ const openLoans = computed(() =>
     </div>
   </section>
 
-  <EquipmentForm v-model:open="formOpen" :equipment="editing" />
+  <EquipmentForm v-if="workspace.dataSource === 'mock'" v-model:open="formOpen" :equipment="editing" />
 
   <ConfirmDialog
-    :open="!!confirmDelete"
+    :open="workspace.dataSource === 'mock' && !!confirmDelete"
     title="移除该设备？"
     :description="confirmDelete ? `「${confirmDelete.equipName}」（${confirmDelete.equipId}）及其借还记录将被移除。演示环境下的本地操作，后端资产台账不受影响。` : ''"
     confirm-text="移除"

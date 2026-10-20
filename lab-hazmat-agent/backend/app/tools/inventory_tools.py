@@ -22,6 +22,7 @@ from langchain_core.tools import tool
 from app.core.config import get_settings
 from app.db.connection import fetch_all
 from app.rag.retriever import format_hits, retrieve_policy
+from app.tools.lab_resolver import resolve_lab
 
 log = logging.getLogger(__name__)
 
@@ -70,26 +71,6 @@ WHERE chem_name LIKE CONCAT('%%', %(chem)s, '%%')
 LIMIT 10
 """
 
-# 实验室编号/名称互转：模型经常把「剧毒品间」当成 lab_id 传进来（实测），
-# 直接拿去过滤会命中 0 行，进而被误判成「台账没有这条记录」。
-_SQL_LAB_LOOKUP = """
-SELECT lab_id, lab_name FROM labs
-WHERE lab_id = %(key)s OR lab_name = %(key)s
-LIMIT 1
-"""
-
-
-async def _resolve_lab(lab_id: str | None) -> tuple[str | None, str]:
-    """把实验室编号或名称统一成编号。无法识别时返回 (None, 提示语)。"""
-    if not lab_id or not str(lab_id).strip():
-        return None, ""
-    key = str(lab_id).strip()
-    rows = await fetch_all(_SQL_LAB_LOOKUP, {"key": key})
-    if rows:
-        return rows[0]["lab_id"], ""
-    return None, f"未识别实验室「{key}」。可用编号 LAB-1 ~ LAB-5，或实验室名称（如「剧毒品间」）。"
-
-
 @tool
 async def query_inventory(chem: str, lab_id: str | None = None) -> str:
     """查询危化品的台账结存、存放柜与危险类别。
@@ -97,7 +78,7 @@ async def query_inventory(chem: str, lab_id: str | None = None) -> str:
     剧毒品与易制爆的精确结存数量一律按区间返回，不提供精确值。
     化学品名称支持 CAS 号或名称；名称匹配失败时会明确告知，不会静默返回空。
     """
-    lab_id, lab_note = await _resolve_lab(lab_id)
+    lab_id, lab_note = await resolve_lab(lab_id)
     if lab_note:
         return lab_note
     rows = await fetch_all(_SQL_INVENTORY, {"chem": chem, "lab_id": lab_id})

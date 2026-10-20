@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from time import monotonic
 
 import aiomysql
 
@@ -21,14 +22,20 @@ log = logging.getLogger(__name__)
 
 _pool: aiomysql.Pool | None = None
 _pool_lock = asyncio.Lock()
+_last_pool_attempt: float | None = None
+_POOL_RETRY_INTERVAL = 8.0
 
 
 async def init_pool() -> None:
     """建连接池。连不上时**不让进程起不来**——health 会报 degraded，
     这样运维能直接 curl /api/health 看到确切原因，而不是容器反复重启看不出所以然。"""
-    global _pool
+    global _pool, _last_pool_attempt
     async with _pool_lock:
         if _pool is not None and not _pool.closed:
+            return
+        now = monotonic()
+        if (_last_pool_attempt is not None
+                and now - _last_pool_attempt < _POOL_RETRY_INTERVAL):
             return
         s = get_settings()
         try:
@@ -48,11 +55,13 @@ async def init_pool() -> None:
             )
         except Exception as exc:                                  # noqa: BLE001
             _pool = None
+            _last_pool_attempt = now
             log.error(
                 "MySQL 连接失败 endpoint=%s ssl=%s err=%s: %s",
                 s.mysql_endpoint, bool(s.mysql_ssl_args), type(exc).__name__, exc,
             )
             return
+        _last_pool_attempt = None
         log.info("MySQL 连接池就绪 endpoint=%s ssl=%s", s.mysql_endpoint, bool(s.mysql_ssl_args))
 
 
@@ -71,7 +80,9 @@ def pool_ready() -> bool:
 async def ping() -> bool:
     """真实探活（连通性检查，不走只读护栏），供热力检查与 /api/health 使用。"""
     if _pool is None or _pool.closed:
-        return False
+        await init_pool()
+        if _pool is None or _pool.closed:
+            return False
     try:
         async with _pool.acquire() as conn:
             await conn.ping(reconnect=True)
@@ -83,6 +94,8 @@ async def ping() -> bool:
 
 async def fetch_all(sql: str, params: dict | None = None) -> list[dict]:
     """唯一的数据读取入口。所有工具都必须走这里，不允许自行开连接。"""
+    if _pool is None or _pool.closed:
+        await init_pool()
     if _pool is None or _pool.closed:
         raise RuntimeError("数据库连接池不可用，请检查 MYSQL_HOST/账号/网络与 MYSQL_SSL 配置。")
 

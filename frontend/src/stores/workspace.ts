@@ -20,8 +20,8 @@ import {
   type AgentPayload,
 } from '@/services/dataApi'
 
-// v2.0：删除了工作流字段、Agent 改为后端配置，旧存档不再兼容，直接换 key 丢弃
-const KEY = 'nexus-workspace-v2'
+// v2.0 移除了工作流字段并将 Agent 配置迁到后端；v3 刷新合成样例，避免旧存档覆盖新数据。
+const KEY = 'nexus-workspace-v3'
 
 interface WorkspaceState {
   agents: Agent[]
@@ -97,6 +97,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     for (const k of LAB_KEYS) initial[k] = [] as never
     // Agent 配置也由后端提供（配置存在服务端，不是浏览器）
     initial.agents = []
+    // 后端模式只显示真实接口提供的记录，不把演示任务/评估混入实时工作台。
+    initial.logs = []
+    initial.evalCases = []
+    initial.evalTasks = []
   }
   const state = reactive<WorkspaceState>(initial)
   watch(state, (s) => saveState(KEY, s), { deep: true })

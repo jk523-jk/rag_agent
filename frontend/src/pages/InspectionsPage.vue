@@ -23,6 +23,7 @@ const current = ref<InspectionRun | null>(null)
 const selectedId = ref<string>('')
 const running = ref(false)
 const loadingRuns = ref(false)
+const runsError = ref('')
 const detail = ref<InspectionFinding | null>(null)
 const severityFilter = ref<'all' | 'high' | 'medium' | 'low'>('all')
 const paramValues = ref<Record<string, unknown>>({})
@@ -76,8 +77,10 @@ async function loadRuns() {
   loadingRuns.value = true
   try {
     runs.value = await listWorkflowRuns(undefined, 20)
-  } catch {
-    runs.value = []
+    runsError.value = ''
+  } catch (e) {
+    runsError.value = e instanceof Error ? e.message : '运行历史加载失败'
+    ui.toast(runs.value.length ? '历史刷新失败，保留上次成功结果' : '运行历史加载失败', 'error')
   } finally {
     loadingRuns.value = false
   }
@@ -274,6 +277,10 @@ onMounted(async () => {
   <!-- 运行历史 -->
   <section class="mt-8">
     <h2 class="mb-2 text-[15px] font-medium text-ink">运行历史</h2>
+    <div v-if="runsError" class="mb-3 flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-err/20 bg-err-soft px-3 py-2 text-[12px] text-err">
+      <span>运行历史暂时不可用：{{ runsError }}</span>
+      <button type="button" class="btn-ghost h-7 px-2 text-[12px]" :disabled="loadingRuns" @click="loadRuns">重试</button>
+    </div>
     <DataTable
       v-if="runs.length"
       :columns="runColumns"
@@ -290,7 +297,7 @@ onMounted(async () => {
       <template #cell-total="{ row }"><span class="tabular-nums">{{ row.counts.total }}</span></template>
       <template #cell-duration_ms="{ row }"><span class="tabular-nums">{{ (row.duration_ms / 1000).toFixed(1) }} s</span></template>
     </DataTable>
-    <EmptyState v-else title="暂无运行记录" description="运行一次巡检后会出现在这里。" />
+    <EmptyState v-else-if="!runsError" title="暂无运行记录" description="运行一次巡检后会出现在这里。" />
   </section>
 
   <!-- Finding 详情抽屉 -->

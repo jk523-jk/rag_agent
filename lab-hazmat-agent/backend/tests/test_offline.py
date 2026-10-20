@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import sys
+import asyncio
 import traceback
 import json
 from datetime import date
@@ -230,6 +231,13 @@ def test_three_gates() -> None:
     v, r = _judge(_row(cert_expire=date(2026, 10, 6)), d, 0)
     eq(g, "资质过期→拦截", v, "资质过期")
     check(g, "资质闸说明包含有效期", any("有效期至" in x for x in r))
+    check(g, "前序闸失败时授权闸明确未判定",
+          any(x == "授权闸：未判定（前序闸未通过）" for x in r))
+    check(g, "前序闸失败时双人闸明确未判定且带真实配置",
+          any("双人闸：未判定（前序闸未通过；实验室不要求双人同行）" == x for x in r))
+    v, r = _judge(_row(cert_status="有效", cert_expire=date(2026, 10, 6)), d, 0)
+    check(g, "过期资质标注台账状态字段但以日期为准",
+          any("台账状态字段为「有效」，但已过有效期，以日期为准" in x for x in r))
 
     v, r = _judge(_row(auth_status="已撤销"), d, 0)
     eq(g, "授权已撤销→拦截", v, "无授权")
@@ -260,6 +268,17 @@ def test_three_gates() -> None:
     # 资质状态字段未更新但 expire_date 已过 → 必须以日期为准
     v, _ = _judge(_row(cert_status="有效", cert_expire=date(2026, 10, 6)), d, 0)
     eq(g, "状态字段未更新时以日期为准", v, "资质过期")
+
+
+def test_lab_resolver() -> None:
+    g = "实验室名称解析"
+    from app.tools.lab_resolver import resolve_lab
+    from app.agent.prompts import SAFETY_PREFIX
+
+    check(g, "准入和库存共用同一名称解析器",
+          resolve_lab.__module__ == "app.tools.lab_resolver")
+    check(g, "准入提示词禁止推断设施属性",
+          "不得推断或编造实验室危险属性" in SAFETY_PREFIX and "未判定" in SAFETY_PREFIX)
 
 
 def test_time_parse() -> None:
@@ -794,6 +813,7 @@ GROUPS = {
     "sql": test_sql_guard,
     "desens": test_desensitize,
     "gates": test_three_gates,
+    "labs": test_lab_resolver,
     "time": test_time_parse,
     "scrub": test_log_scrub,
     "sds": test_sds_isolation,

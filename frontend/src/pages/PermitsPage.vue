@@ -161,7 +161,6 @@ function judgeFor(row: GrantRow) {
     </template>
   </PageHeader>
 
-  <p class="mb-4 text-[12px] text-ink-3">以下为演示数据（模拟）。判定逻辑与后端 check_lab_access 三闸口径一致。</p>
 
   <section aria-label="许可概览" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard label="授权记录" :value="String(grants.length)" hint="含已撤销与已过期" />

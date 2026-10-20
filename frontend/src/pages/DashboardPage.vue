@@ -11,7 +11,6 @@ import PageSection from '@/components/common/PageSection.vue'
 import FadeInOnScroll from '@/components/common/FadeInOnScroll.vue'
 import QuoteBlock from '@/components/common/QuoteBlock.vue'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { chatTrend } from '@/mocks/trend'
 import type { LogEntry } from '@/types'
 
 const workspace = useWorkspaceStore()
@@ -20,10 +19,27 @@ const range = ref<7 | 30>(7)
 
 const TrendChart = defineAsyncComponent(() => import('@/components/common/TrendChart.vue'))
 
-const trend = computed(() => chatTrend[range.value])
+const trend = computed(() => {
+  const end = new Date(`${todayIso}T12:00:00`)
+  return Array.from({ length: range.value }, (_, index) => {
+    const day = new Date(end)
+    day.setDate(end.getDate() - range.value + index + 1)
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+    return {
+      date: `${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`,
+      value: workspace.state.logs.filter((log) => log.taskType === 'chat' && log.startedAt.startsWith(iso)).length,
+    }
+  })
+})
 const hasData = computed(() => trend.value.some((p) => p.value > 0))
 
-const recentTasks = computed(() => workspace.state.logs.slice(0, 5))
+const recentLogs = computed(() => [...workspace.state.logs].sort((a, b) => b.startedAt.localeCompare(a.startedAt)))
+const recentTasks = computed(() => recentLogs.value.slice(0, 5))
+const recentActivities = computed(() => recentLogs.value.slice(0, 5).map((log) => ({
+  id: log.id,
+  text: `${log.target} · ${log.status === 'success' ? '已完成' : log.status === 'running' ? '运行中' : '执行失败'}`,
+  at: log.startedAt,
+})))
 
 // ---------------- 实验室指标（对齐后端判定口径）----------------
 
@@ -63,13 +79,6 @@ const overdueCount = computed(
     ).length,
 )
 
-// 最近活动：演示用固定条目，点击进入对应页面
-const activities = [
-  { text: '设备 EQ-0002 气相色谱质谱联用仪校准已过期 20 天', at: '2026-10-15 08:50', to: '/equipment' },
-  { text: 'Agent「准入判定助手」完成一次三闸判定', at: '2026-10-15 09:42', to: '/logs' },
-  { text: '赵某借用便携式气体检测仪逾期未还（应还 10-12）', at: '2026-10-15 08:00', to: '/access' },
-]
-
 function taskTarget(log: LogEntry) {
   const agent = workspace.state.agents.find((a) => a.name === log.target)
   return agent ? `/agents/${agent.id}` : '/logs'
@@ -84,11 +93,11 @@ function openLog(log: LogEntry) {
   <PageHeader title="工作台" description="查看 AI 应用、实验室设备与人员的整体状态。">
     <template #actions>
       <RouterLink to="/chat" class="btn-default">去 AI 对话</RouterLink>
-      <RouterLink to="/equipment?create=1" class="btn-primary">新增设备</RouterLink>
+      <RouterLink v-if="workspace.dataSource === 'mock'" to="/equipment?create=1" class="btn-primary">新增设备</RouterLink>
     </template>
   </PageHeader>
 
-  <p class="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
+  <p v-if="workspace.dataSource !== 'mock'" class="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
     <template v-if="workspace.dataSource === 'mysql'">
       <span class="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">实时数据库</span>
       数据来自 lab_hazmat 库，读取于 {{ workspace.serverTime }}
@@ -100,10 +109,6 @@ function openLog(log: LogEntry) {
     <template v-else-if="workspace.dataSource === 'error'">
       <span class="rounded-full bg-err-soft px-2 py-0.5 text-[11px] font-medium text-err">连接失败</span>
       {{ workspace.dataError }}——页面为空不代表库里没有数据
-    </template>
-    <template v-else>
-      <span class="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn">演示数据</span>
-      当前为本地模拟数据，不对应真实生产情况。
     </template>
   </p>
 
@@ -141,7 +146,7 @@ function openLog(log: LogEntry) {
       <div class="mb-3 flex items-center justify-between gap-2">
         <div>
           <h2 id="trend-title" class="text-[15px] font-semibold text-ink">对话趋势</h2>
-          <p class="text-[12px] text-ink-3">模拟数据 · 按日统计</p>
+          <p class="text-[12px] text-ink-3">基于运行日志 · 按日统计</p>
         </div>
         <div role="group" aria-label="时间范围" class="inline-flex rounded-[var(--radius-control)] border border-line p-0.5">
           <button
@@ -171,8 +176,9 @@ function openLog(log: LogEntry) {
     <section class="panel p-4" aria-labelledby="activity-title">
       <h2 id="activity-title" class="mb-3 text-[15px] font-semibold text-ink">最近活动</h2>
       <ul class="divide-y divide-line">
-        <li v-for="a in activities" :key="a.text">
-          <RouterLink :to="a.to" class="flex flex-col gap-0.5 py-2.5 hover:text-brand">
+        <li v-if="!recentActivities.length" class="py-4 text-[12px] text-ink-3">暂无最近活动。任务运行后，最新记录会显示在这里。</li>
+        <li v-for="a in recentActivities" :key="a.id">
+          <RouterLink :to="{ path: '/logs', query: { id: a.id } }" class="flex flex-col gap-0.5 py-2.5 hover:text-brand">
             <span class="text-[13px] text-ink">{{ a.text }}</span>
             <span class="text-[12px] text-ink-3">{{ a.at }}</span>
           </RouterLink>

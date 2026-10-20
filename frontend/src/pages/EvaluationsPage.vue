@@ -15,6 +15,7 @@ import type { EvalCase } from '@/types'
 
 const workspace = useWorkspaceStore()
 const ui = useUiStore()
+const isBackend = import.meta.env.VITE_API_MODE === 'backend'
 
 const tab = ref<'overview' | 'cases' | 'tasks' | 'results'>('overview')
 
@@ -80,6 +81,10 @@ const launching = ref(false)
 const taskForm = reactive({ name: '规程问答回归 v3', target: '规程问答助手' })
 
 async function launch() {
+  if (isBackend) {
+    ui.toast('当前后端尚未提供评估运行接口', 'error')
+    return
+  }
   if (!taskForm.name.trim()) {
     ui.toast('请填写评估任务名称', 'error')
     return
@@ -89,9 +94,9 @@ async function launch() {
     const task = await runEvaluation(taskForm.name.trim(), taskForm.target, workspace.state.evalCases.length)
     workspace.addEvalTask(task)
     tab.value = 'tasks'
-    ui.toast('模拟评估完成')
+    ui.toast('评估任务已完成')
   } catch {
-    ui.toast('评估启动失败：模拟故障', 'error')
+    ui.toast('评估启动失败，请稍后重试', 'error')
   } finally {
     launching.value = false
   }
@@ -105,13 +110,16 @@ const targetAgents = computed(() => workspace.state.agents.map((a) => a.name))
 </script>
 
 <template>
-  <PageHeader title="评估中心" description="管理评测用例、运行模拟评估并查看检索与回答质量指标。">
+  <PageHeader title="评估中心" description="管理测试用例并查看检索与回答质量指标。">
     <template #actions>
-      <button type="button" class="btn-primary" @click="launch" :disabled="launching">
-        <Play class="size-4" aria-hidden="true" />{{ launching ? '评估中…' : '启动模拟评估' }}
+      <button type="button" class="btn-primary" @click="launch" :disabled="launching || isBackend" :title="isBackend ? '当前后端尚未接入评估接口' : undefined">
+        <Play class="size-4" aria-hidden="true" />{{ launching ? '评估中…' : '启动评估' }}
       </button>
     </template>
   </PageHeader>
+
+  <EmptyState v-if="isBackend" title="评估服务尚未接入" description="当前后端没有评估运行 API。切换到演示环境可查看本地评估样例。" />
+  <template v-else>
 
   <div class="mb-4 border-b border-line" role="tablist" aria-label="评估中心">
     <button
@@ -333,4 +341,5 @@ const targetAgents = computed(() => workspace.state.agents.map((a) => a.name))
     @update:open="confirmDeleteCase = null"
     @confirm="deleteCase"
   />
+  </template>
 </template>

@@ -70,7 +70,7 @@ function isLoanOverdue(loan: { dueTime: string; returnTime: string | null }): bo
 const hasOpenLoan = computed(() => loans.value.some((l) => l.returnTime === null))
 
 function doDelete() {
-  if (!equipment.value) return
+  if (workspace.dataSource !== 'mock' || !equipment.value) return
   const { id, equipId, equipName } = equipment.value
   workspace.state.equipment = workspace.state.equipment.filter((e) => e.id !== id)
   workspace.state.equipmentLoans = workspace.state.equipmentLoans.filter((l) => l.equipId !== equipId)
@@ -83,8 +83,8 @@ function doDelete() {
   <div v-if="equipment">
     <PageHeader :title="`${equipment.equipId} ${equipment.equipName}`" :description="`${equipment.category}${equipment.modelNo ? ' · ' + equipment.modelNo : ''} · ${equipment.labId}`">
       <template #actions>
-        <button type="button" class="btn-default" @click="formOpen = true">编辑设备</button>
-        <button type="button" class="btn-danger" @click="confirmDelete = true">移除</button>
+        <button v-if="workspace.dataSource === 'mock'" type="button" class="btn-default" @click="formOpen = true">编辑设备</button>
+        <button v-if="workspace.dataSource === 'mock'" type="button" class="btn-danger" @click="confirmDelete = true">移除</button>
       </template>
     </PageHeader>
 
@@ -198,10 +198,10 @@ function doDelete() {
       </p>
     </section>
 
-    <EquipmentForm v-model:open="formOpen" :equipment="equipment" />
+    <EquipmentForm v-if="workspace.dataSource === 'mock'" v-model:open="formOpen" :equipment="equipment" />
 
     <ConfirmDialog
-      :open="confirmDelete"
+      :open="workspace.dataSource === 'mock' && confirmDelete"
       title="移除该设备？"
       :description="`「${equipment.equipName}」（${equipment.equipId}）及其 ${loans.length} 条借还记录将被移除。仅影响浏览器演示数据。`"
       confirm-text="移除"

@@ -180,7 +180,6 @@ const loanColumns: Column[] = [
     </template>
   </PageHeader>
 
-  <p class="mb-4 text-[12px] text-ink-3">以下为演示数据（模拟），不代表真实门禁与借还流水。</p>
 
   <section aria-label="出入概览" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard label="通行记录" :value="String(accessRows.length)" hint="全部实验室" />

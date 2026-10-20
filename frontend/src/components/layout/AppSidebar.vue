@@ -15,6 +15,13 @@ const workspace = useWorkspaceStore()
 
 const collapsed = computed(() => ui.prefs.sidebarCollapsed)
 const isActive = (path: string) => route.path === path || route.path.startsWith(`${path}/`)
+const environmentLabel = computed(() => ({
+  mock: '演示环境',
+  loading: '连接中',
+  mysql: '实时数据',
+  error: '数据连接异常',
+}[workspace.dataSource]))
+const userLabel = computed(() => workspace.dataSource === 'mock' ? '安全员（示例用户）' : '当前工作台用户')
 </script>
 
 <template>
@@ -96,16 +103,20 @@ const isActive = (path: string) => route.path === path || route.path.startsWith(
       </div>
     </nav>
 
-    <!-- 底部：工作区、模拟标签、用户 -->
+    <!-- 底部：工作区、环境状态、用户 -->
     <div class="border-t border-line p-3 space-y-2">
-      <div v-show="!collapsed || mobileOpen" class="flex items-center justify-between gap-2">
-        <span class="truncate text-[12px] text-ink-2">{{ workspace.state.settings.workspaceName }}</span>
-        <span class="mock-tag shrink-0" title="当前为前端模拟环境，数据不是真实生产数据">DEMO</span>
+      <div class="flex items-center justify-between gap-2">
+        <span v-show="!collapsed || mobileOpen" class="truncate text-[12px] text-ink-2">{{ workspace.state.settings.workspaceName }}</span>
+        <span
+          class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+          :class="workspace.dataSource === 'mock' ? 'mock-tag' : workspace.dataSource === 'error' ? 'bg-err-soft text-err' : 'bg-info-soft text-info'"
+          :title="workspace.dataSource === 'mock' ? '本地合成演示数据' : workspace.dataSource === 'mysql' ? `数据读取于 ${workspace.serverTime}` : workspace.dataError"
+        >{{ environmentLabel }}</span>
       </div>
       <div class="flex items-center gap-2.5">
         <CircleUser class="size-7 text-ink-3 shrink-0" aria-hidden="true" />
         <div v-show="!collapsed || mobileOpen" class="min-w-0 leading-tight">
-          <p class="truncate text-[13px] text-ink">安全员（演示）</p>
+          <p class="truncate text-[13px] text-ink">{{ userLabel }}</p>
           <p class="truncate text-[12px] text-ink-3">只读权限</p>
         </div>
       </div>

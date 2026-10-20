@@ -167,7 +167,7 @@ async function doDelete() {
         </p>
         <form @submit.prevent="runTest">
           <label class="sr-only" for="test-input">测试问题</label>
-          <textarea id="test-input" v-model="testInput" rows="2" class="textarea" placeholder="例：王某现在能不能进 LAB-3？" />
+          <textarea id="test-input" v-model="testInput" rows="2" class="textarea" placeholder="例：王景尧现在能不能进 LAB-3？" />
           <button type="submit" class="btn-primary mt-2 w-full" :disabled="testing || !testInput.trim()">
             <Play class="size-3.5" aria-hidden="true" />{{ testing ? '运行中…' : '运行测试' }}
           </button>

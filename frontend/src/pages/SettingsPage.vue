@@ -10,6 +10,7 @@ import { useChatStore } from '@/stores/chat'
 import { useUiStore } from '@/stores/ui'
 import { STORAGE_VERSION, removeState } from '@/utils/storage'
 import { downloadText, plainClone } from '@/utils/format'
+import { todayIso } from '@/utils/clock'
 import type { AppSettings } from '@/types'
 
 const workspace = useWorkspaceStore()
@@ -71,6 +72,7 @@ function resetDraft() {
 
 const confirmReset = ref(false)
 function doReset() {
+  if (workspace.dataSource !== 'mock') return
   workspace.resetDemo()
   removeState('nexus-chat')
   Object.assign(draft, plainClone(DEFAULT_SETTINGS))
@@ -79,13 +81,19 @@ function doReset() {
 }
 
 function exportAll() {
+  if (workspace.dataSource !== 'mock') {
+    ui.toast('当前环境暂不支持导出业务数据', 'error')
+    return
+  }
   downloadText('nexus-workspace-export.json', JSON.stringify({
     version: STORAGE_VERSION,
-    exportedAt: '2026-10-15 10:00',
+    exportedAt: new Date().toISOString(),
+    dataDate: todayIso,
+    source: workspace.dataSource,
     isMock: true,
     workspace: workspace.state,
   }, null, 2))
-  ui.toast('已导出演示数据（含模拟标记）')
+  ui.toast('已导出当前工作区数据')
 }
 
 const columns: Column[] = [
@@ -109,7 +117,7 @@ const storageRows = computed<StorageRow[]>(() => [
 </script>
 
 <template>
-  <PageHeader title="系统设置" description="配置模型、外观与演示数据。">
+  <PageHeader title="系统设置" description="配置模型、外观与本地数据。">
     <template #actions>
       <button type="button" class="btn-default" @click="resetDraft"><RotateCcw class="size-4" aria-hidden="true" />恢复默认值</button>
       <button type="button" class="btn-primary" @click="save"><Save class="size-4" aria-hidden="true" />保存配置</button>
@@ -143,7 +151,11 @@ const storageRows = computed<StorageRow[]>(() => [
           <div>
             <span class="label">运行环境</span>
             <p class="flex items-center gap-2 text-[13px] text-ink">
-              <span class="mock-tag">DEMO</span>前端演示环境，未连接后端、数据库与向量库
+              <span v-if="workspace.dataSource === 'mock'" class="mock-tag">演示环境</span>
+              <span v-else-if="workspace.dataSource === 'mysql'" class="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">实时数据</span>
+              <span v-else-if="workspace.dataSource === 'loading'" class="rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-medium text-info">连接中</span>
+              <span v-else class="rounded-full bg-err-soft px-2 py-0.5 text-[11px] font-medium text-err">连接异常</span>
+              <span>{{ workspace.dataSource === 'mock' ? '本地合成数据' : workspace.dataSource === 'mysql' ? `读取于 ${workspace.serverTime}` : workspace.dataSource === 'loading' ? '正在读取后端业务数据' : workspace.dataError || '无法读取后端业务数据' }}</span>
             </p>
           </div>
           <div>
@@ -221,8 +233,8 @@ const storageRows = computed<StorageRow[]>(() => [
           </p>
           <DataTable :columns="columns" :rows="storageRows" caption="本地存储键" />
           <div class="mt-4 flex flex-wrap gap-2">
-            <button type="button" class="btn-default" @click="exportAll"><Database class="size-4" aria-hidden="true" />导出演示数据</button>
-            <button type="button" class="btn-danger" @click="confirmReset = true"><RotateCcw class="size-4" aria-hidden="true" />重置演示数据</button>
+            <button type="button" class="btn-default" :disabled="workspace.dataSource !== 'mock'" :title="workspace.dataSource === 'mock' ? undefined : '真实业务数据导出暂未开放'" @click="exportAll"><Database class="size-4" aria-hidden="true" />导出本地数据</button>
+            <button type="button" class="btn-danger" :disabled="workspace.dataSource !== 'mock'" :title="workspace.dataSource === 'mock' ? undefined : '仅演示环境支持重置本地数据'" @click="confirmReset = true"><RotateCcw class="size-4" aria-hidden="true" />重置演示数据</button>
           </div>
           <p class="mt-3 text-[12px] text-ink-3">
             重置会清空本地修改（Agent、工作流、实验室领域数据、会话与配置）并恢复初始演示数据，此操作不可撤销。
@@ -235,7 +247,7 @@ const storageRows = computed<StorageRow[]>(() => [
   </div>
 
   <ConfirmDialog
-    :open="confirmReset"
+    :open="confirmReset && workspace.dataSource === 'mock'"
     title="重置全部演示数据？"
     description="将清空本地修改、会话记录与配置，恢复为初始演示数据。"
     confirm-text="确认重置"

@@ -109,7 +109,6 @@ function personName(id: string | null) {
     </template>
   </PageHeader>
 
-  <p class="mb-4 text-[12px] text-ink-3">以下为演示数据（模拟），不代表真实台账。</p>
 
   <section aria-label="台账概览" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard label="台账条目" :value="String(workspace.state.inventory.length)" hint="全部实验室" />
@@ -217,7 +216,7 @@ function personName(id: string | null) {
       </section>
 
       <p class="rounded-[var(--radius-control)] bg-warn-soft px-3 py-2 text-[12px] text-warn">
-        本页为演示数据。系统只读，不能修改台账、报损或核销；相关操作请走实验室安全负责人人工审批。
+        系统不支持直接修改、报损或核销台账；相关操作请走实验室安全负责人人工审批。
       </p>
     </div>
   </AppDrawer>
