@@ -103,3 +103,6 @@ desktop.ini
 
 # 代码分析工具产物（.archify），可重新生成，不入库
 .archify/
+
+# 忽略新建 Markdown 文件；已跟踪的文档不受影响
+*.md
