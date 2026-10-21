@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "实验室智能管理系统 · 2.2b 架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": ".archify/architecture-lab-hazmat-2-2b-20261021-150434/lab-hazmat-architecture.html",
+    "repository": {
+      "url": "https://github.com/jk523-jk/rag_agent.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "78b591baeaeba22c3597a6e4c001f9759271d170"
+    }
+  },
+  "components": [
+    {
+      "id": "people",
+      "type": "external",
+      "label": "师生与管理员",
+      "sublabel": "普通用户 · 实验室管理员 · 系统管理员",
+      "icon": "person",
+      "pos": [40, 255],
+      "size": [180, 82],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/portal/auth.py", "line": 41, "end_line": 60 }
+      ]
+    },
+    {
+      "id": "vue",
+      "type": "frontend",
+      "label": "Vue 单页前端",
+      "sublabel": "个人门户 · 管理工作台 · 路由守卫",
+      "icon": "frontend",
+      "pos": [285, 255],
+      "size": [200, 90],
+      "sources": [
+        { "path": "frontend/src/main.ts", "line": 1, "end_line": 9 },
+        { "path": "frontend/src/router/index.ts", "line": 5, "end_line": 17 },
+        { "path": "frontend/src/router/index.ts", "line": 46, "end_line": 54 }
+      ]
+    },
+    {
+      "id": "fastapi",
+      "type": "backend",
+      "label": "FastAPI 应用",
+      "sublabel": "统一 /api 路由与中间件",
+      "icon": "backend",
+      "pos": [585, 255],
+      "size": [180, 90],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/main.py", "line": 59, "end_line": 75 },
+        { "path": "lab-hazmat-agent/backend/app/main.py", "line": 78, "end_line": 84 }
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "认证与权限",
+      "sublabel": "服务端会话 · 角色范围 · CSRF",
+      "icon": "security",
+      "pos": [875, 80],
+      "size": [190, 90],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/portal/auth.py", "line": 63, "end_line": 98 },
+        { "path": "lab-hazmat-agent/backend/app/portal/auth.py", "line": 106, "end_line": 137 }
+      ]
+    },
+    {
+      "id": "portal",
+      "type": "backend",
+      "label": "个人门户与许可 API",
+      "sublabel": "个人记录 · 申请 · 审批 · 生效核对",
+      "icon": "backend",
+      "pos": [875, 245],
+      "size": [210, 100],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/portal/api.py", "line": 51, "end_line": 100 },
+        { "path": "lab-hazmat-agent/backend/app/portal/api.py", "line": 131, "end_line": 180 },
+        { "path": "lab-hazmat-agent/backend/app/portal/api.py", "line": 253, "end_line": 321 }
+      ]
+    },
+    {
+      "id": "admin",
+      "type": "backend",
+      "label": "管理与 AI API",
+      "sublabel": "台账 · Agent · 对话 · 工作流",
+      "icon": "backend",
+      "pos": [875, 450],
+      "size": [210, 100],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/api/data.py", "line": 251, "end_line": 303 },
+        { "path": "lab-hazmat-agent/backend/app/api/chat.py", "line": 104, "end_line": 123 },
+        { "path": "lab-hazmat-agent/backend/app/main.py", "line": 69, "end_line": 75 }
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "应用 SQLite",
+      "sublabel": "账号 · 会话 · 申请 · 审计 · 业务快照",
+      "icon": "database",
+      "pos": [1175, 80],
+      "size": [225, 100],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/portal/store.py", "line": 11, "end_line": 63 },
+        { "path": "lab-hazmat-agent/backend/app/portal/store.py", "line": 75, "end_line": 92 },
+        { "path": "lab-hazmat-agent/backend/app/core/config.py", "line": 86, "end_line": 95 }
+      ]
+    },
+    {
+      "id": "business",
+      "type": "backend",
+      "label": "业务数据适配",
+      "sublabel": "身份范围过滤 · 只读 SQL 快照",
+      "icon": "backend",
+      "pos": [1175, 250],
+      "size": [225, 110],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/portal/business.py", "line": 15, "end_line": 67 },
+        { "path": "lab-hazmat-agent/backend/app/portal/business_sql.py", "line": 34, "end_line": 48 },
+        { "path": "lab-hazmat-agent/backend/app/db/connection.py", "line": 76, "end_line": 115 }
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent 运行时",
+      "sublabel": "系统管理员专用 · 配置工具集",
+      "icon": "backend",
+      "pos": [1175, 465],
+      "size": [225, 95],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/api/chat.py", "line": 104, "end_line": 123 },
+        { "path": "lab-hazmat-agent/backend/app/agent/graph.py", "line": 56, "end_line": 80 },
+        { "path": "lab-hazmat-agent/backend/app/tools/access_tools.py", "line": 176, "end_line": 199 }
+      ]
+    },
+    {
+      "id": "mysql",
+      "type": "external",
+      "label": "MySQL 业务库",
+      "sublabel": "可选 · 原只读连接池",
+      "icon": "database",
+      "pos": [1485, 250],
+      "size": [180, 100],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/db/connection.py", "line": 29, "end_line": 65 },
+        { "path": "lab-hazmat-agent/backend/app/core/config.py", "line": 86, "end_line": 91 }
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "兼容协议 LLM",
+      "sublabel": "由 LLM_BASE_URL 配置",
+      "icon": "cloud",
+      "pos": [1485, 465],
+      "size": [180, 90],
+      "sources": [
+        { "path": "lab-hazmat-agent/backend/app/agent/graph.py", "line": 56, "end_line": 65 },
+        { "path": "lab-hazmat-agent/backend/app/core/config.py", "line": 22, "end_line": 27 }
+      ]
+    }
+  ],
+  "connections": [
+    { "id": "person-to-vue", "from": "people", "to": "vue", "label": "使用门户", "variant": "emphasis" },
+    { "id": "vue-to-api", "from": "vue", "to": "fastapi", "label": "同源 /api · Cookie", "variant": "security" },
+    { "id": "api-to-auth", "from": "fastapi", "to": "auth" },
+    { "id": "api-to-portal", "from": "fastapi", "to": "portal" },
+    { "id": "api-to-admin", "from": "fastapi", "to": "admin" },
+    { "id": "auth-to-sqlite", "from": "auth", "to": "sqlite", "label": "账号 / 会话" },
+    { "id": "portal-to-sqlite", "from": "portal", "to": "sqlite", "label": "申请 / 审计" },
+    { "id": "portal-to-business", "from": "portal", "to": "business", "label": "个人业务查询" },
+    { "id": "admin-to-business", "from": "admin", "to": "business", "label": "授权范围台账" },
+    { "id": "business-to-sqlite", "from": "business", "to": "sqlite", "label": "默认 application" },
+    { "id": "business-to-mysql", "from": "business", "to": "mysql", "label": "可选 mysql 模式", "variant": "dashed" },
+    { "id": "admin-to-agent", "from": "admin", "to": "agent", "label": "系统管理员" },
+    { "id": "agent-to-business", "from": "agent", "to": "business", "label": "只读业务工具" },
+    { "id": "agent-to-llm", "from": "agent", "to": "llm", "label": "模型请求", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "权限在服务端落实",
+      "items": [
+        "前端路由守卫提供导航体验；FastAPI 会话依赖再次检查角色、实验室范围、CSRF 与首次改密状态。",
+        "普通用户只能读取本人数据；系统管理 API 另行要求 system_admin。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "存储选择",
+      "items": [
+        "账号、会话、申请与审计始终保存在应用 SQLite。",
+        "业务快照默认读应用库；切到 mysql 时读取原业务库，不会在故障时静默切换。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "既有 AI 能力",
+      "items": [
+        "聊天、Agent 与巡检入口仅对系统管理员开放。",
+        "模型端点由 LLM_BASE_URL 配置；SQLite 模式下 SQL 工具只物化业务表到内存查询库。"
+      ]
+    }
+  ]
+}
