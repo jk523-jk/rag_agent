@@ -26,7 +26,7 @@ const emit = defineEmits<{
 const ui = useUiStore()
 const input = ref('')
 // 运行模式由构建变量决定：模拟模式的回答是预设内容，后端模式的回答来自真实服务，界面必须区分
-const isBackend = import.meta.env.VITE_API_MODE === 'backend'
+const isBackend = true
 const scroller = ref<HTMLElement | null>(null)
 
 // 资质异常 / 授权异常 / 台账差异 / 缺见证人 单独高亮置顶（开发 Plan M6-2）

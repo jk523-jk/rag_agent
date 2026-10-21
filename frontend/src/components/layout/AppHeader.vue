@@ -60,8 +60,7 @@ function onKey(e: KeyboardEvent) {
 watch(() => route.path, () => { open.value = false })
 
 const quickAction = computed(() => {
-  if (route.path.startsWith('/equipment')) return { label: '新增设备', to: '/equipment?create=1' }
-  return { label: '新建 Agent', to: '/agents?create=1' }
+  return { label: '处理许可申请', to: '/applications' }
 })
 </script>
 
@@ -96,7 +95,7 @@ const quickAction = computed(() => {
           id="global-search"
           v-model="keyword"
           class="input pl-8"
-          placeholder="搜索 Agent、工作流、设备、人员…"
+          placeholder="搜索设备、人员、Agent…"
           autocomplete="off"
           @focus="open = true"
           @blur="open = false"
@@ -130,9 +129,9 @@ const quickAction = computed(() => {
         <Plus class="size-4" aria-hidden="true" />{{ quickAction.label }}
       </RouterLink>
 
-      <button type="button" class="btn-ghost h-8 w-8 p-0" aria-label="帮助" title="帮助">
+      <RouterLink to="/portal/notifications" class="btn-ghost" aria-label="消息中心" title="消息中心">
         <CircleHelp class="size-4" aria-hidden="true" />
-      </button>
+      </RouterLink>
     </div>
   </header>
 </template>

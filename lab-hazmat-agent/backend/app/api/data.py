@@ -13,7 +13,9 @@ import logging
 from datetime import date, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from app.portal.auth import Principal, admin
+from app.portal.business import snapshot, scoped
 
 from app.db.connection import fetch_all, pool_ready
 from app.db.sql_guard import GuardError
@@ -247,67 +249,57 @@ async def _equipment_loans() -> list[dict]:
 
 # ---------------------------------------------------------------- 路由
 @router.get("/overview")
-async def overview(access_limit: int = Query(200, ge=1, le=MAX_ROWS)) -> dict:
+async def overview(access_limit: int = Query(200, ge=1, le=MAX_ROWS), p: Principal = Depends(admin)) -> dict:
     """一次性返回控制台所需的全部领域数据，供前端 store 初始化。
 
     拆成多接口会让首屏发 9 个请求；工作台是「打开即全量」的使用方式，
     聚合成一个往返更合适，后续需要局部刷新再走下面的单资源接口。
     """
-    return {
-        "labs": await _labs(),
-        "persons": await _persons(),
-        "qualifications": await _qualifications(),
-        "authorizations": await _authorizations(),
-        "accessEvents": await _access_events(access_limit),
-        "inventory": await _inventory(),
-        "hazmatUses": await _hazmat_uses(),
-        "equipment": await _equipment(),
-        "equipmentLoans": await _equipment_loans(),
-        "serverTime": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "source": "mysql",
-    }
+    result = scoped(await snapshot(), p)
+    result["totals"] = {k: len(v) for k,v in result.items() if isinstance(v, list)}
+    return result
 
 
 @router.get("/labs")
-async def labs() -> list[dict]:
-    return await _labs()
+async def labs(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["labs"]
 
 
 @router.get("/persons")
-async def persons() -> list[dict]:
-    return await _persons()
+async def persons(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["persons"]
 
 
 @router.get("/qualifications")
-async def qualifications() -> list[dict]:
-    return await _qualifications()
+async def qualifications(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["qualifications"]
 
 
 @router.get("/authorizations")
-async def authorizations() -> list[dict]:
-    return await _authorizations()
+async def authorizations(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["authorizations"]
 
 
 @router.get("/access-events")
-async def access_events(limit: int = Query(200, ge=1, le=MAX_ROWS)) -> list[dict]:
-    return await _access_events(limit)
+async def access_events(limit: int = Query(200, ge=1, le=MAX_ROWS), p: Principal = Depends(admin)) -> list[dict]:
+    return sorted(scoped(await snapshot(), p)["accessEvents"], key=lambda r:r["eventTime"], reverse=True)[:limit]
 
 
 @router.get("/inventory")
-async def inventory() -> list[dict]:
-    return await _inventory()
+async def inventory(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["inventory"]
 
 
 @router.get("/hazmat-uses")
-async def hazmat_uses() -> list[dict]:
-    return await _hazmat_uses()
+async def hazmat_uses(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["hazmatUses"]
 
 
 @router.get("/equipment")
-async def equipment() -> list[dict]:
-    return await _equipment()
+async def equipment(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["equipment"]
 
 
 @router.get("/equipment-loans")
-async def equipment_loans() -> list[dict]:
-    return await _equipment_loans()
+async def equipment_loans(p: Principal = Depends(admin)) -> list[dict]:
+    return scoped(await snapshot(), p)["equipmentLoans"]

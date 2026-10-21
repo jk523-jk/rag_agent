@@ -74,6 +74,9 @@ async def close_pool() -> None:
 
 
 def pool_ready() -> bool:
+    if get_settings().business_data_source == "application":
+        from app.portal.business_sql import available
+        return available()
     return _pool is not None and not _pool.closed
 
 
@@ -94,6 +97,10 @@ async def ping() -> bool:
 
 async def fetch_all(sql: str, params: dict | None = None) -> list[dict]:
     """唯一的数据读取入口。所有工具都必须走这里，不允许自行开连接。"""
+    if get_settings().business_data_source == "application":
+        from app.portal.business_sql import query
+        safe_sql = validate_readonly(sql)
+        return await asyncio.to_thread(query, safe_sql, params)
     if _pool is None or _pool.closed:
         await init_pool()
     if _pool is None or _pool.closed:

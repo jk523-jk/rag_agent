@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { reactive, ref, watch, computed } from 'vue'
+import { auth } from '@/services/auth'
+import { reactive, ref, computed } from 'vue'
 import type {
   AccessEvent, Agent, AppSettings, Equipment, EquipmentLoan, EvalCase, EvalTask,
   HazardItem, HazmatUse, Lab, LabAuthorization, LogEntry, Person, Qualification,
@@ -13,7 +14,7 @@ import {
   agents as seedAgents, evalCases as seedCases, evalTasks as seedTasks,
   logs as seedLogs,
 } from '@/mocks/data'
-import { loadState, saveState, removeState } from '@/utils/storage'
+import { removeState } from '@/utils/storage'
 import { USE_BACKEND } from '@/utils/clock'
 import {
   createAgentApi, deleteAgentApi, fetchOverview, listAgents, setAgentStatusApi, updateAgentApi,
@@ -69,18 +70,6 @@ function seed(): WorkspaceState {
 
 // 结构校验：数据损坏或旧版本不兼容时回退为演示数据。
 // ⚠ 新增顶层数组必须加进这个列表，否则旧存档会通过校验却缺字段，页面读取时才崩。
-const ARRAY_KEYS = [
-  'agents', 'evalCases', 'evalTasks', 'logs',
-  'labs', 'persons', 'qualifications', 'authorizations', 'accessEvents',
-  'inventory', 'hazmatUses', 'equipment', 'equipmentLoans',
-] as const
-
-function isWorkspaceState(v: unknown): v is WorkspaceState {
-  if (!v || typeof v !== 'object') return false
-  const o = v as Record<string, unknown>
-  return ARRAY_KEYS.every((k) => Array.isArray(o[k])) && !!o.settings
-}
-
 /** 实验室领域的 9 个数据集——切到真实数据时整组替换、整组清空 */
 const LAB_KEYS = [
   'labs', 'persons', 'qualifications', 'authorizations', 'accessEvents',
@@ -90,7 +79,7 @@ const LAB_KEYS = [
 export type DataSource = 'mock' | 'loading' | 'mysql' | 'error'
 
 export const useWorkspaceStore = defineStore('workspace', () => {
-  const initial = loadState(KEY, seed(), isWorkspaceState)
+  const initial = seed()
   if (USE_BACKEND) {
     // 真实数据模式下先清空演示数据：宁可短时间显示空表，
     // 也不能让演示数据冒充真实数据（这是此前最容易误导人的地方）。
@@ -103,7 +92,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     initial.evalTasks = []
   }
   const state = reactive<WorkspaceState>(initial)
-  watch(state, (s) => saveState(KEY, s), { deep: true })
+  // Authenticated business data stays in memory; no shared-browser persistence.
 
   // 数据来源标记，页面可据此显示「演示数据 / 实时数据库」徽标
   const dataSource = ref<DataSource>(USE_BACKEND ? 'loading' : 'mock')
@@ -115,7 +104,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     if (!USE_BACKEND) return
     dataSource.value = 'loading'
     try {
-      const [d, agentList] = await Promise.all([fetchOverview(), listAgents()])
+      const [d, agentList] = await Promise.all([fetchOverview(), auth.user?.systemAdmin ? listAgents() : Promise.resolve([])])
       state.labs = d.labs
       state.persons = d.persons
       state.qualifications = d.qualifications
@@ -130,6 +119,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       dataError.value = ''
       dataSource.value = 'mysql'
     } catch (e) {
+      for (const key of LAB_KEYS) state[key] = [] as never
+      state.agents = []
       dataSource.value = 'error'
       dataError.value = e instanceof Error ? e.message : String(e)
     }

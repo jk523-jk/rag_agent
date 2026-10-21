@@ -77,6 +77,11 @@ pnpm-debug.log*
 chroma/
 data/chroma/
 *.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.test-tmp/
+initial-credentials.local.json
+artifacts/portal-smoke/
 
 # 日志
 logs/

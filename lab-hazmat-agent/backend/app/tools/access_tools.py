@@ -206,6 +206,12 @@ async def check_lab_access(person: str, lab_id: str, at_time: str | None = None)
         entry_count = int(stats.get("entry_count") or 0)
 
         verdict, reasons = _judge(row, at.date(), companion, entry_count)
+        if get_settings().business_data_source == "application":
+            from app.portal.business import snapshot, qualification_issues
+            issues = qualification_issues(await snapshot(), str(row["person_id"]), lab_id, on_date=at.date().isoformat())
+            if issues:
+                verdict = "资质过期"
+                reasons.extend(issues)
         lines.append(
             f"人员：{row['name']}（{row['emp_no']}，{row.get('role') or '身份未登记'}）\n"
             f"实验室：{lab_id} {lab.get('lab_name') or ''}"

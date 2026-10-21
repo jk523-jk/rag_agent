@@ -6,7 +6,6 @@ defineProps<{ label: string; value: string; delta?: string; deltaTone?: 'up' | '
   <div class="panel p-4 flex flex-col gap-2">
     <div class="flex items-center justify-between gap-2">
       <span class="text-[13px] text-ink-2">{{ label }}</span>
-      <span class="mock-tag">模拟</span>
     </div>
     <div class="text-[28px] font-semibold leading-none text-ink tabular-nums">{{ value }}</div>
     <div class="flex items-center gap-2 text-[12px]">

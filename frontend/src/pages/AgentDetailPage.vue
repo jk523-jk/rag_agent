@@ -198,7 +198,7 @@ async function doDelete() {
               <th scope="col" class="h-9 px-4 text-left font-medium">开始时间</th>
               <th scope="col" class="h-9 px-4 text-right font-medium">耗时</th>
               <th scope="col" class="h-9 px-4 text-left font-medium">状态</th>
-              <th scope="col" class="h-9 px-4 text-right font-medium">Token（模拟）</th>
+              <th scope="col" class="h-9 px-4 text-right font-medium">Token</th>
             </tr>
           </thead>
           <tbody>

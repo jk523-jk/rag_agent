@@ -1,0 +1,1 @@
+<template><section class="panel p-8"><h1 class="text-2xl mb-3">功能暂未开放</h1><p class="text-ink-2">服务接入完成后开放使用。</p><RouterLink to="/dashboard" class="btn-default mt-5">返回工作台</RouterLink></section></template>

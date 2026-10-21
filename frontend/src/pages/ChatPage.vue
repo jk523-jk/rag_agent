@@ -11,7 +11,7 @@ import { useUiStore } from '@/stores/ui'
 import { streamAnswer, type SimAnswer } from '@/services/chatEngine'
 import { streamChatFromBackend } from '@/services/chatApi'
 
-const useBackend = import.meta.env.VITE_API_MODE === 'backend'
+const useBackend = true
 
 const chat = useChatStore()
 const workspace = useWorkspaceStore()

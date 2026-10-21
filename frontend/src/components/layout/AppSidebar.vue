@@ -5,6 +5,7 @@ import { PanelLeftClose, PanelLeftOpen, X, CircleUser } from 'lucide-vue-next'
 import { NAV_GROUPS } from '@/utils/nav'
 import { useUiStore } from '@/stores/ui'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { auth, logout } from '@/services/auth'
 
 defineProps<{ mobileOpen: boolean }>()
 const emit = defineEmits<{ (e: 'close-mobile'): void }>()
@@ -16,12 +17,14 @@ const workspace = useWorkspaceStore()
 const collapsed = computed(() => ui.prefs.sidebarCollapsed)
 const isActive = (path: string) => route.path === path || route.path.startsWith(`${path}/`)
 const environmentLabel = computed(() => ({
-  mock: '演示环境',
+  mock: '未连接',
   loading: '连接中',
-  mysql: '实时数据',
+  mysql: '数据已更新',
   error: '数据连接异常',
 }[workspace.dataSource]))
-const userLabel = computed(() => workspace.dataSource === 'mock' ? '安全员（示例用户）' : '当前工作台用户')
+const userLabel = computed(() => auth.user?.displayName ?? '')
+const groups = computed(() => NAV_GROUPS.map(g => ({...g,items:g.items.filter(i => auth.user?.systemAdmin || ['/dashboard','/reagents','/equipment','/persons','/permits','/applications','/access'].includes(i.path))})).filter(g=>g.items.length))
+async function exit() { try { await logout() } catch (e) { ui.toast((e as Error).message, 'error') } }
 </script>
 
 <template>
@@ -79,7 +82,7 @@ const userLabel = computed(() => workspace.dataSource === 'mock' ? '安全员（
 
     <!-- 导航 -->
     <nav class="flex-1 overflow-y-auto px-2 py-3 space-y-4">
-      <div v-for="group in NAV_GROUPS" :key="group.title">
+      <div v-for="group in groups" :key="group.title">
         <p v-show="!collapsed || mobileOpen" class="px-2 mb-1 text-[12px] text-ink-3">{{ group.title }}</p>
         <ul class="space-y-0.5">
           <li v-for="item in group.items" :key="item.path">
@@ -110,16 +113,17 @@ const userLabel = computed(() => workspace.dataSource === 'mock' ? '安全员（
         <span
           class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
           :class="workspace.dataSource === 'mock' ? 'mock-tag' : workspace.dataSource === 'error' ? 'bg-err-soft text-err' : 'bg-info-soft text-info'"
-          :title="workspace.dataSource === 'mock' ? '本地合成演示数据' : workspace.dataSource === 'mysql' ? `数据读取于 ${workspace.serverTime}` : workspace.dataError"
+          :title="workspace.dataSource === 'mysql' ? `数据读取于 ${workspace.serverTime}` : workspace.dataError"
         >{{ environmentLabel }}</span>
       </div>
       <div class="flex items-center gap-2.5">
         <CircleUser class="size-7 text-ink-3 shrink-0" aria-hidden="true" />
         <div v-show="!collapsed || mobileOpen" class="min-w-0 leading-tight">
           <p class="truncate text-[13px] text-ink">{{ userLabel }}</p>
-          <p class="truncate text-[12px] text-ink-3">只读权限</p>
+          <p class="truncate text-[12px] text-ink-3">{{ auth.user?.systemAdmin ? '系统管理员' : '实验室管理员' }}</p>
         </div>
       </div>
+      <div class="flex gap-2 flex-wrap" v-show="!collapsed || mobileOpen"><RouterLink to="/portal" class="btn-ghost">个人门户</RouterLink><button class="btn-ghost" @click="exit">退出登录</button></div>
       <button
         type="button"
         class="btn-ghost w-full hidden md:inline-flex"

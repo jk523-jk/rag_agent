@@ -42,8 +42,9 @@ async function getJson<T>(url: string): Promise<T> {
   if (!resp.ok) {
     let detail = `HTTP ${resp.status}`
     try {
-      const body = (await resp.json()) as { detail?: string }
-      if (body?.detail) detail = body.detail
+      const body = (await resp.json()) as { detail?: string | { message?: string } }
+      if (typeof body.detail === 'string') detail = body.detail
+      else if (body.detail?.message) detail = body.detail.message
     } catch {
       /* 非 JSON 响应，保留状态码 */
     }

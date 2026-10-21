@@ -5,10 +5,8 @@
 // 页面一律从这里取，不要各自定义常量，否则切模式后判定口径会不一致。
 import { DEMO_TODAY } from '@/mocks/labData'
 
-const MODE = import.meta.env.VITE_API_MODE
-
 /** true = 走真实后端数据；false = 使用本地演示数据 */
-export const USE_BACKEND = MODE === 'backend'
+export const USE_BACKEND = true
 
 function fmt(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')

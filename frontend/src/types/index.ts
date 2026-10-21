@@ -217,6 +217,8 @@ export interface Lab {
   /** 是否要求双人准入，剧毒品间为 true */
   needsDouble: boolean
   mgrName: string
+  status?: string
+  requiredCerts?: string[]
 }
 
 export interface Person {

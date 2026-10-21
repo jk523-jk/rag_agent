@@ -83,6 +83,17 @@ class Settings(BaseSettings):
     # ---- 运行 ----
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:5173,http://localhost"
+    # 独立应用库：账号、申请、会话和显式初始化的业务数据，不扩大 MySQL 只读权限。
+    application_db_path: str = "data/application.sqlite3"
+    business_data_source: str = "application"  # application 或 mysql；失败不切换数据源
+    auth_cookie_secure: bool = False
+    auth_idle_seconds: int = 1800
+    auth_max_seconds: int = 28800
+
+    @property
+    def application_db(self) -> Path:
+        path = Path(self.application_db_path).expanduser()
+        return path if path.is_absolute() else (_PROJECT_ROOT / path).resolve()
 
     @property
     def cors_origin_list(self) -> list[str]:

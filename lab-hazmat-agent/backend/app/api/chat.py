@@ -11,7 +11,8 @@ import json
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from app.portal.auth import Principal, system_admin
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import ToolMessage
 from pydantic import BaseModel, Field
@@ -101,7 +102,8 @@ async def _run_with_retry(cfg, req: ChatRequest) -> tuple[list, VerifyResult]:
 
 
 @router.post("/chat")
-async def chat(req: ChatRequest) -> dict:
+async def chat(req: ChatRequest, p: Principal = Depends(system_admin)) -> dict:
+    req.thread_id = f"{p.id}:{req.thread_id}"
     refusal = detect_control_intent(req.question)
     if refusal:
         return {"reply": refusal, "refused": True, "agent_id": req.agent_id}
@@ -118,7 +120,8 @@ async def chat(req: ChatRequest) -> dict:
 
 
 @router.post("/chat/stream")
-async def chat_stream(req: ChatRequest) -> StreamingResponse:
+async def chat_stream(req: ChatRequest, p: Principal = Depends(system_admin)) -> StreamingResponse:
+    req.thread_id = f"{p.id}:{req.thread_id}"
     # 控制类拦截与 Agent 校验都放在建流之前：错误要以 HTTP 状态码返回，
     # 而不是先 200 再在流里吐一个 error 事件。
     refusal = detect_control_intent(req.question)

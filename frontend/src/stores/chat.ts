@@ -1,9 +1,6 @@
 import { defineStore } from 'pinia'
-import { reactive, watch, computed } from 'vue'
+import { reactive, computed } from 'vue'
 import type { ChatMessage, ChatSession } from '@/types'
-import { loadState, saveState } from '@/utils/storage'
-
-const KEY = 'nexus-chat'
 
 interface ChatState {
   sessions: ChatSession[]
@@ -21,15 +18,8 @@ export function makeSession(agentId: string, title = '新会话'): ChatSession {
   return { id: newId('sess'), title, agentId, updatedAt: now(), messages: [] }
 }
 
-function isChatState(v: unknown): v is ChatState {
-  if (!v || typeof v !== 'object') return false
-  const o = v as ChatState
-  return Array.isArray(o.sessions)
-}
-
 export const useChatStore = defineStore('chat', () => {
-  const state = reactive<ChatState>(loadState(KEY, { sessions: [], activeId: null }, isChatState))
-  watch(state, (s) => saveState(KEY, s), { deep: true })
+  const state = reactive<ChatState>({ sessions: [], activeId: null })
 
   const active = computed(() => state.sessions.find((s) => s.id === state.activeId) ?? null)
 

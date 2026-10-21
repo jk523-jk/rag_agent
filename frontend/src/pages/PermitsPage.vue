@@ -12,11 +12,26 @@ import { useWorkspaceStore } from '@/stores/workspace'
 import { useUiStore } from '@/stores/ui'
 import { judge, verdictTone } from '@/utils/accessDecision'
 import { todayIso } from '@/utils/clock'
+import { api } from '@/services/auth'
 import type { AccessDecision, AuthStatus, Status } from '@/types'
 
 const workspace = useWorkspaceStore()
 const ui = useUiStore()
 const route = useRoute()
+const revoking = ref<GrantRow | null>(null)
+const revokeNote = ref('')
+const revokeBusy = ref(false)
+async function revokePermit() {
+  if (!revoking.value || revokeNote.value.trim().length < 3) return
+  revokeBusy.value = true
+  try {
+    await api(`/api/admin/permits/${encodeURIComponent(revoking.value.id)}/revoke`, { method: 'POST', body: JSON.stringify({ note: revokeNote.value }) })
+    revoking.value = null
+    await workspace.hydrate()
+    ui.toast('许可已撤销')
+  } catch (e) { ui.toast((e as Error).message, 'error') }
+  finally { revokeBusy.value = false }
+}
 
 const tab = ref<'judge' | 'grants'>('judge')
 
@@ -65,9 +80,9 @@ function runJudge() {
     atDate: atDate.value,
     qualifications: workspace.qualificationsOf(p.id),
     authorizations: workspace.authorizationsOf(p.id),
-    accessEvents: workspace.state.accessEvents,
+    accessEvents: workspace.accessEventsOf(p.id),
   })
-  ui.toast('已完成三闸判定（演示）')
+  ui.toast('已完成准入条件检查；实际进入仍需现场核验')
 }
 
 // ---------------- 授权台账 ----------------
@@ -306,9 +321,11 @@ function judgeFor(row: GrantRow) {
       <template #status="{ row }"><StatusBadge :status="AUTH_TONE[row.status as AuthStatus]" :label="row.status" /></template>
       <template #actions="{ row }">
         <button type="button" class="btn-ghost h-7 px-2 text-[12px]" @click="judgeFor(row as GrantRow)">判定准入</button>
+        <button v-if="row.status !== '已撤销'" type="button" class="btn-ghost text-err h-7 px-2 text-[12px]" @click="revoking = row as GrantRow; revokeNote = ''">撤销许可</button>
       </template>
     </DataTable>
 
+    <section v-if="revoking" class="panel p-5 mt-4 space-y-3" aria-label="撤销许可确认"><h3 class="font-medium">撤销 {{ revoking.personName }} 在 {{ revoking.labName }} 的许可</h3><label class="block"><span class="label">撤销原因</span><textarea v-model="revokeNote" class="textarea" rows="2" maxlength="2000" /></label><div class="flex gap-3"><button class="btn-danger" :disabled="revokeBusy || revokeNote.trim().length < 3" @click="revokePermit">确认撤销</button><button class="btn-default" @click="revoking = null">取消</button></div></section>
     <p class="mt-3 flex items-start gap-1.5 rounded-[var(--radius-control)] bg-info-soft px-3 py-2 text-[12px] text-info">
       <ShieldCheck class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       授权可用需同时满足状态为「有效」且判定日期落在生效与失效之间。

@@ -8,24 +8,30 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from app.agent.graph import active_session_count
 from app.core.config import get_settings
 from app.db.connection import describe_connection, ping
 from app.tools.access_tools import ddl_available
+from app.portal.auth import system_admin
+from app.portal.store import connection
 
 router = APIRouter()
 
 
 @router.get("/health")
 async def health() -> dict:
+    if get_settings().business_data_source == "application":
+        with connection() as db:
+            initialized = bool(db.execute("SELECT 1 FROM business_data").fetchone())
+        return {"status": "ok" if initialized else "degraded", "dataReady": initialized}
     ok = await ping()
     return {"status": "ok" if ok else "degraded", "mysql": ok}
 
 
-@router.get("/health/detail")
+@router.get("/health/detail", dependencies=[Depends(system_admin)])
 async def health_detail() -> dict:
     """连接自检。不返回口令，可安全贴在工单里。"""
     s = get_settings()
@@ -51,6 +57,10 @@ async def health_detail() -> dict:
 async def ready() -> JSONResponse:
     """就绪探针：不满足条件返回 503，便于容器编排把流量挡在外面。"""
     s = get_settings()
+    if s.business_data_source == "application":
+        with connection() as db:
+            initialized = bool(db.execute("SELECT 1 FROM business_data").fetchone())
+        return JSONResponse({"ready": initialized}, status_code=200 if initialized else 503)
     mysql_ok = await ping()
     llm_ok = bool(s.llm_api_key)
     ready_ = mysql_ok and llm_ok

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { todayIso } from '@/utils/clock'
+import { auth } from '@/services/auth'
 import { computed, defineAsyncComponent, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -64,7 +65,7 @@ const certExpiredCount = computed(
         .filter((q) => q.certType === CERT_GATE_TYPE)
       if (!matched.length) return true
       const latest = matched.reduce((a, b) => (b.expireDate > a.expireDate ? b : a))
-      return latest.expireDate < todayIso
+      return latest.expireDate < todayIso || latest.issueDate > todayIso || latest.status !== '有效'
     }).length,
 )
 
@@ -92,15 +93,16 @@ function openLog(log: LogEntry) {
 <template>
   <PageHeader title="工作台" description="查看 AI 应用、实验室设备与人员的整体状态。">
     <template #actions>
-      <RouterLink to="/chat" class="btn-default">去 AI 对话</RouterLink>
+      <RouterLink to="/applications" class="btn-primary">处理许可申请</RouterLink>
+      <RouterLink v-if="auth.user?.systemAdmin" to="/chat" class="btn-default">去 AI 对话</RouterLink>
       <RouterLink v-if="workspace.dataSource === 'mock'" to="/equipment?create=1" class="btn-primary">新增设备</RouterLink>
     </template>
   </PageHeader>
 
   <p v-if="workspace.dataSource !== 'mock'" class="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
     <template v-if="workspace.dataSource === 'mysql'">
-      <span class="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">实时数据库</span>
-      数据来自 lab_hazmat 库，读取于 {{ workspace.serverTime }}
+      <span class="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">数据已更新</span>
+      数据读取于 {{ workspace.serverTime }}
     </template>
     <template v-else-if="workspace.dataSource === 'loading'">
       <span class="rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-medium text-info">加载中</span>

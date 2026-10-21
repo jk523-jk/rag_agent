@@ -89,12 +89,12 @@ function onMove(e: PointerEvent) {
       :style="{ left: `${(xAt(hovered!) / W) * 100}%` }"
     >
       <span class="text-ink-2">{{ hoverPoint.date }}</span>
-      <span class="ml-2 font-medium tabular-nums text-ink">{{ hoverPoint.value }} 次对话（模拟）</span>
+      <span class="ml-2 font-medium tabular-nums text-ink">{{ hoverPoint.value }} 次对话</span>
     </div>
 
     <!-- 屏幕阅读器与键盘用户的等价数据 -->
     <table class="sr-only">
-      <caption>近 {{ days }} 天对话数（模拟）</caption>
+      <caption>近 {{ days }} 天对话数</caption>
       <thead>
         <tr><th scope="col">日期</th><th scope="col">对话数</th></tr>
       </thead>

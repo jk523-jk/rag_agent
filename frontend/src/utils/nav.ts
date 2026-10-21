@@ -39,6 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: '/equipment', label: '设备管理', icon: Microscope },
       { path: '/persons', label: '人员管理', icon: Users },
       { path: '/permits', label: '许可管理', icon: ShieldCheck },
+      { path: '/applications', label: '许可审批', icon: ClipboardCheck },
       { path: '/access', label: '出入管理', icon: DoorOpen },
     ],
   },
@@ -47,12 +48,12 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: '/inspections', label: '风险巡检', icon: ListChecks },
       { path: '/logs', label: '运行日志', icon: ScrollText },
-      { path: '/evaluations', label: '评估中心', icon: ClipboardCheck },
+      { path: '/audit', label: '操作审计', icon: ScrollText },
     ],
   },
   {
     title: '设置',
-    items: [{ path: '/settings', label: '系统设置', icon: Settings }],
+    items: [{ path: '/users', label: '账号与权限', icon: Users }, { path: '/settings', label: '系统设置', icon: Settings }],
   },
 ]
 

@@ -72,16 +72,20 @@ export function judge(input: AccessInput): AccessDecision {
 
   // ---------- 闸 1：资质闸 ----------
   const cert = latestQualification(input.qualifications, CERT_GATE_TYPE)
-  const certOk = !!cert && cert.expireDate >= day
+  const required = lab.requiredCerts ?? [CERT_GATE_TYPE]
+  const certOk = required.every(type => {
+    const q = latestQualification(input.qualifications, type)
+    return !!q && q.issueDate <= day && q.expireDate >= day && q.status === '有效'
+  })
   if (certOk) {
     reasons.push(
-      `资质闸：通过（${CERT_GATE_TYPE} ${cert!.certNo}，有效期至 ${cert!.expireDate}，状态 ${cert!.status}）`,
+      `资质闸：通过（${required.join('、')}均有效）`,
     )
   } else {
     const detail = cert
       ? `${CERT_GATE_TYPE} ${cert.certNo}，有效期至 ${cert.expireDate}，状态 ${cert.status}`
       : `未登记${CERT_GATE_TYPE}`
-    reasons.push(`资质闸：未通过（${detail}）`)
+    reasons.push(`资质闸：未通过（${detail}；所需资质：${required.join('、')}，请检查签发日期、有效期和注销状态）`)
     // 状态与有效期不一致时明确点出，避免用户以为系统读错
     if (cert && cert.status === '有效' && cert.expireDate < day) {
       reasons.push(`说明：该证书状态仍登记为「有效」，但有效期已于 ${cert.expireDate} 届满，判定以有效期为准。`)
@@ -91,7 +95,7 @@ export function judge(input: AccessInput): AccessDecision {
 
   // ---------- 闸 2：授权闸 ----------
   const auth = input.authorizations.find((a) => a.labId === lab.labId) ?? null
-  const authOk = !!auth && auth.status === '有效' && auth.authFrom <= day && day <= auth.authTo
+  const authOk = !!auth && auth.status === '有效' && auth.authFrom <= day && day <= auth.authTo && (!lab.status || lab.status === '开放')
   if (authOk) {
     reasons.push(`授权闸：通过（${auth!.authFrom} ~ ${auth!.authTo}，状态 ${auth!.status}，授权人 ${auth!.grantor}）`)
   } else {
